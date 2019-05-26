@@ -1,0 +1,9 @@
+[package]
+name = "logo"
+version = "0.1.0"
+authors = ["BraydenMarshall <bmarsh579@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+turtle = "1.0.0-rc.2"
+regex = "1"
