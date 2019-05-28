@@ -1,51 +1,55 @@
-use super::lexer::{Token, Builtin};
+use crate::lexer::{Token, Command};
 
 #[derive(Debug)]
 pub struct AST {
-    pub expressions: Vec<Expr>,
+    pub expressions: Vec<Expression>,
 }
 
 #[derive(Debug)]
-pub enum Expr {
+pub enum Expression {
     ProgramStart,
-    FunctionCall { func: Builtin, args: Vec<Expr> },
+    FunctionCall { func: Command, args: Vec<Expression> },
     Number { val: f64 },
 }
 
 impl AST {
-    pub fn build(tokens: &Vec<Token>) -> AST {
+    pub fn build(tokens: &Vec<Token>) -> Result<AST, &'static str> {
         let mut ast = AST {
-            expressions: vec![Expr::ProgramStart]
+            expressions: vec![Expression::ProgramStart]
         };
 
-        let mut index = 0;
-        while index < tokens.len() {
-            let mut expr = Expr::ProgramStart;
-            match &tokens[index] {
-                Token::Builtin(func) => {
-                    if index + 1 >= tokens.len() {
-                        return ast;
-                    }
+        let mut token_iter = tokens.iter();
+        while let Some(tok) = token_iter.next() {
+            let mut expr: Option<Expression> = None;
+            if let Token::Command(func) = tok {
+                let mut args: Vec<Expression> = vec![];
 
-                    match tokens[index+1] {
-                        Token::Number(n) => {
-                            expr = Expr::FunctionCall {
-                                func: func.clone(),
-                                args: vec![Expr::Number {
-                                    val: n,
-                                }],
-                            }
-                        },
-                        _ => return ast,
+                for _ in 0..func.arity() {
+                    match token_iter.next() {
+                        Some(e) => match e {
+                            Token::Number(n) => args.push(
+                                Expression::Number {
+                                    val: *n,
+                                }
+                            ),
+                            _ => return Err("Expected number argument"),
+                        }
+                        None => return Err("Not enough arguments"),
                     }
-                    index += 2;
-                },
-                _ => index += 1,
+                }
+
+                expr = Some(Expression::FunctionCall {
+                    func: func.clone(),
+                    args,
+                });
             }
-            ast.expressions.push(expr);
+
+            if let Some(e) = expr {
+                ast.expressions.push(e);
+            } else {
+                return Err("Expected command");
+            }
         }
-
-        ast
+        Ok(ast)
     }
-
 }

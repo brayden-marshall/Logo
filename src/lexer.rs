@@ -1,17 +1,40 @@
 use regex::Regex;
 
-#[derive(Debug, Clone)]
-pub enum Token {
-    Number(f64),
-    Builtin(Builtin),
+macro_rules! regex {
+    ($pattern:expr) => {
+        Regex::new($pattern).unwrap();
+    }
 }
 
-#[derive(Debug, Clone)]
-pub enum Builtin {
+#[derive(Debug, Clone, PartialEq)]
+pub enum Token {
+    Number(f64),
+    Command(Command),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Command {
     Forward,
     Backward,
     Left,
     Right,
+    Exit,
+}
+
+impl Command {
+    pub fn arity(&self) -> usize {
+        match self {
+            Command::Forward | Command::Backward | 
+            Command::Left | Command::Right => 1,
+            Command::Exit => 0,
+        }
+    }
+}
+
+pub struct Lexer<'a> {
+    source: &'a str,
+    index: usize,
+    token_definitions: Vec<TokenDefinition>,
 }
 
 struct TokenDefinition {
@@ -20,70 +43,80 @@ struct TokenDefinition {
 }
 
 const NUMBER_REGEX: &str = r"^([0-9]+\.[0-9]+|[0-9]+)";
-const FORWARD_REGEX: &str = r"^(fd|forward)";
-const BACKWARD_REGEX: &str = r"^(bk|backward)";
-const LEFT_REGEX: &str = r"^(lt|left)";
-const RIGHT_REGEX: &str = r"^(rt|right)";
 
 fn get_token_definitions() -> Vec<TokenDefinition> {
     vec![
         TokenDefinition { 
             token: Token::Number(0.0), 
-            regex: Regex::new(NUMBER_REGEX).unwrap(),
+            regex: regex!(NUMBER_REGEX),
         },
         TokenDefinition { 
-            token: Token::Builtin(Builtin::Forward),
-            regex: Regex::new(FORWARD_REGEX).unwrap(),
+            token: Token::Command(Command::Forward),
+            regex: regex!(r"^(fd|forward)"),
         },
         TokenDefinition { 
-            token: Token::Builtin(Builtin::Backward),
-            regex: Regex::new(BACKWARD_REGEX).unwrap(),
+            token: Token::Command(Command::Backward),
+            regex: regex!(r"^(bk|backward)"),
         },
         TokenDefinition { 
-            token: Token::Builtin(Builtin::Left),
-            regex: Regex::new(LEFT_REGEX).unwrap(),
+            token: Token::Command(Command::Left),
+            regex: regex!(r"^(lt|left)"),
         },
         TokenDefinition { 
-            token: Token::Builtin(Builtin::Right),
-            regex: Regex::new(RIGHT_REGEX).unwrap(),
+            token: Token::Command(Command::Right),
+            regex: regex!(r"^(rt|right)"),
         },
+        TokenDefinition {
+            token: Token::Command(Command::Exit),
+            regex: regex!(r"^exit"),
+        }
     ]
 }
 
-pub fn tokenize(input: &str) -> Vec<Token> {
-    let mut tokens: Vec<Token> = vec![];
-    let mut index = 0;
-    let token_definitions = get_token_definitions();
-
-    while index < input.len() {
-        let mut found_match = false;
-        // check every token definition for a match
-        for def in token_definitions.iter() {
-
-            // if we find a match for the current token
-            if let Some(m) = def.regex.find(&input[index..]) {
-                // special case for number because it has a value field
-                if let Token::Number(_) = def.token {
-                    tokens.push(Token::Number(
-                        input[index..index+m.end()].parse()
-                            .expect("Error parsing numeral")
-                    ));
-                } else {
-                    tokens.push(def.token.clone());
-                }
-                // advance past the current token
-                index += m.end();
-                found_match = true;
-                break;
-            }
-        }
-
-        if !found_match {
-            index += 1;
+impl<'a> Lexer<'a> {
+    pub fn new(source: &'a str) -> Self {
+        Self {
+            source,
+            index: 0,
+            token_definitions: get_token_definitions(),
         }
     }
 
-    tokens
+    fn skip_whitespace(&mut self) {
+        let whitespace_regex = Regex::new("^[\t\n\x20]").unwrap();
+        while whitespace_regex.is_match(&self.source[self.index..]) {
+            self.index += 1;
+        }
+    }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.skip_whitespace();
+
+        for def in self.token_definitions.iter() {
+            // if we find a match for the current token
+            if let Some(m) = def.regex.find(&self.source[self.index..]) {
+                let token: Option<Token>;
+
+                // special case for number because it has a value field
+                if let Token::Number(_) = def.token {
+                    token = Some(Token::Number(
+                        self.source[self.index..self.index+m.end()].parse()
+                            .expect("Error parsing numeral")
+                    ));
+                } else {
+                    token = Some(def.token.clone());
+                }
+                // increasing internal index counter by the number of characters
+                // the token consumed
+                self.index += m.end();
+                return token;
+            }
+        }
+        None
+    }
 }
 
 #[cfg(test)]
@@ -104,5 +137,19 @@ mod tests {
                 panic!("Match not found");
             }
         }
+    }
+
+    #[test]
+    fn lex_short_command_test() {
+        let input_string: &str = "forward 100 bk 683.27";
+        let lexer = Lexer::new(input_string);
+        let output_vec: Vec<Token> = lexer.collect();
+        assert_eq!(
+            output_vec,
+            vec![
+                Token::Command(Command::Forward), Token::Number(100.0),
+                Token::Command(Command::Backward), Token::Number(683.27),
+            ],
+       );
     }
 }
