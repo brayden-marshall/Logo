@@ -20,10 +20,36 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 - ClearScreen: `cs | clearscreen`
 - Exit (added for convenience): `exit`
 
+## Things to implement 
+#### Small-scale
+- SetXY: `setxy 60 60`
+- Label: `label "string literal"`
+- Repeat: `repeat 7 [ forward 100 rt 40 ]`
+- Random (1 argument is max number): `forward random 100`
+- allow for reading input from a file as well as interactive shell (read incrementally rather than the whole file into memory at once)
+
+#### Large-scale
+- Variables: 
+```
+make "angle 45
+fd 10 rt :angle
+
+```
+- Procedures: 
+```logo
+to draw_circle
+repeat 360 [
+    forward 5
+    rt 1
+]
+end
+
+draw_circle
+```
+- Arithmetic operations on numbers: `fd 100.0 + 70.0 bk sqrt 100`
+- Control Flow
+
+
 ## Issues
 
-- `run()` function in `main.rs` is horrible, and does not properly dealing with different function aritys
-
-## Todo
-
-- allow for reading input from a file as well as interactive shell (read incrementally rather than the whole file into memory at once)
+- `run()` function in `main.rs` is horrible, and does not properly deal with different function aritys
