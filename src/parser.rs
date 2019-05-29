@@ -13,6 +13,7 @@ pub enum Expression {
 }
 
 impl AST {
+    // main parsing logic. currently does not handle varying argument types
     pub fn build(tokens: &Vec<Token>) -> Result<AST, &'static str> {
         let mut ast = AST {
             expressions: vec![Expression::ProgramStart]
@@ -20,6 +21,7 @@ impl AST {
 
         let mut token_iter = tokens.iter();
         while let Some(tok) = token_iter.next() {
+            // the expression we will be adding to ast
             let mut expr: Option<Expression> = None;
             if let Token::Command(func) = tok {
                 let mut args: Vec<Expression> = vec![];

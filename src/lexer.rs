@@ -1,5 +1,6 @@
 use regex::Regex;
 
+// short macro to simplify reading of token definitions
 macro_rules! regex {
     ($pattern:expr) => {
         Regex::new($pattern).unwrap();
@@ -14,23 +15,37 @@ pub enum Token {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
+    // 0 arity
+    PenUp,
+    PenDown,
+    HideTurtle,
+    ShowTurtle,
+    Home,
+    ClearScreen,
+    Exit,
+
+    // 1 arity
     Forward,
     Backward,
     Left,
     Right,
-    Exit,
 }
 
 impl Command {
     pub fn arity(&self) -> usize {
+        use Command::*;
+
         match self {
-            Command::Forward | Command::Backward | 
-            Command::Left | Command::Right => 1,
-            Command::Exit => 0,
+            Forward | Backward | Left | Right => 1,
+            Exit | ClearScreen | PenUp | PenDown |
+            HideTurtle | ShowTurtle | Home => 0,
         }
     }
 }
 
+// currently takes a reference to str as it's input source, in future it
+// should ideally be changed to take an Iterator over chars, to be more
+// flexible toward input source type
 pub struct Lexer<'a> {
     source: &'a str,
     index: usize,
@@ -42,8 +57,11 @@ struct TokenDefinition {
     regex: Regex,
 }
 
-const NUMBER_REGEX: &str = r"^([0-9]+\.[0-9]+|[0-9]+)";
+const NUMBER_REGEX: &str = r"^-?([0-9]+\.[0-9]+|[0-9]+)";
 
+// returns a vector of the definition of every language token
+// a token definition consists of it's enumerated type and
+// it's regular expression used for parsing
 fn get_token_definitions() -> Vec<TokenDefinition> {
     vec![
         TokenDefinition { 
@@ -69,7 +87,31 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         TokenDefinition {
             token: Token::Command(Command::Exit),
             regex: regex!(r"^exit"),
-        }
+        },
+        TokenDefinition {
+            token: Token::Command(Command::ClearScreen),
+            regex: regex!(r"^(cs|clearscreen)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::PenUp),
+            regex: regex!(r"^(pu|penup)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::PenDown),
+            regex: regex!(r"^(pd|pendown)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::HideTurtle),
+            regex: regex!(r"^(ht|hideturtle)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::ShowTurtle),
+            regex: regex!(r"^(st|showturtle)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::Home),
+            regex: regex!(r"^home"),
+        },
     ]
 }
 
@@ -82,6 +124,10 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    // increasing internal index to the first non-whitespace character
+    // FIXME: currently an inefficient use of regex compiling. Should ideally
+    // use builtin char.is_whitespace() or perhaps a dedicated whitespace-handler
+    // type to avoid extra regex compilation
     fn skip_whitespace(&mut self) {
         let whitespace_regex = Regex::new("^[\t\n\x20]").unwrap();
         while whitespace_regex.is_match(&self.source[self.index..]) {
@@ -90,6 +136,7 @@ impl<'a> Lexer<'a> {
     }
 }
 
+// the main functionality of the Lexer being implemented as an Iterator
 impl<'a> Iterator for Lexer<'a> {
     type Item = Token;
     fn next(&mut self) -> Option<Self::Item> {

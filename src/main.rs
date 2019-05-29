@@ -14,10 +14,13 @@ fn main() {
     loop {
         input = get_input();
 
+        // lexing input and returning vector of tokens
         let lexer = Lexer::new(&input);
         let tokens = lexer.collect();
         println!("{:?}", tokens);
 
+        // building the AST out of the tokens and running the program
+        // based off of the AST
         match AST::build(&tokens) {
             Ok(ast) => {
                 println!("{:?}", ast);
@@ -34,15 +37,32 @@ fn run(t: &mut Turtle, ast: &AST) {
             continue;
         }
 
+        // currently a hack to get the interpreter running
+        // does not properly handle varying number of command arguments
+        // or varying argument types
         if let Expression::FunctionCall{func, args} = expr {
-            if let Expression::Number{val} = args[0] {
-                match func {
-                    Command::Forward => t.forward(val),
-                    Command::Backward => t.backward(val),
-                    Command::Left => t.left(val),
-                    Command::Right => t.right(val),
+            match func.arity() {
+                0 => function = match func {
+                    Command::PenUp => t.pen_down(),
+                    Command::PenDown => t.pen_down(),
+                    Command::HideTurtle => t.hide(),
+                    Command::ShowTurtle => t.show(),
+                    Command::Home => t.home(),
+                    Command::ClearScreen => t.clear(),
+
                     Command::Exit => std::process::exit(0),
+                    _ => (),
+                },
+                1 => if let Expression::Number{val} = args[0] {
+                    match func {
+                        Command::Forward => t.forward(val),
+                        Command::Backward => t.backward(val),
+                        Command::Left => t.left(val),
+                        Command::Right => t.right(val),
+                        _ => (),
+                    }
                 }
+                _ => (),
             }
         }
     } 
