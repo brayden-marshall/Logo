@@ -186,17 +186,43 @@ mod tests {
         }
     }
 
-    #[test]
-    fn lex_short_command_test() {
-        let input_string: &str = "forward 100 bk 683.27";
-        let lexer = Lexer::new(input_string);
+    fn lex_test(input: &str, expected: Vec<Token>) {
+        let lexer = Lexer::new(input);
         let output_vec: Vec<Token> = lexer.collect();
-        assert_eq!(
-            output_vec,
+        assert_eq!(output_vec, expected);
+    }
+
+    #[test]
+    fn lex_number_test() {
+        use Token::Number;
+        lex_test(
+            "0 100 683.27 -79 -78493.123",
             vec![
-                Token::Command(Command::Forward), Token::Number(100.0),
-                Token::Command(Command::Backward), Token::Number(683.27),
-            ],
-       );
+                Number(0.0), Number(100.0), Number(683.27), 
+                Number(-79.0), Number(-78493.123),
+            ]
+        );
+    }
+
+    macro_rules! commands {
+        ($($i:ident),+) => {
+            vec![$(Token::Command(Command::$i)),+]
+        }
+    }
+
+    #[test]
+    fn lex_command_test() {
+        lex_test(
+            "pu      penup pd pendown ht hideturtle st showturtle
+            cs clearscreen home exit
+            fd forward bk backward lt left rt right
+            ",
+            commands!(
+                PenUp, PenUp, PenDown, PenDown, HideTurtle, HideTurtle,
+                ShowTurtle, ShowTurtle, ClearScreen, ClearScreen, Home,
+                Exit, Forward, Forward, Backward, Backward, Left, Left,
+                Right, Right
+            ),
+        );
     }
 }

@@ -40,9 +40,9 @@ fn run(t: &mut Turtle, ast: &AST) {
         // currently a hack to get the interpreter running
         // does not properly handle varying number of command arguments
         // or varying argument types
-        if let Expression::FunctionCall{func, args} = expr {
+        if let Expression::Command{func, args} = expr {
             match func.arity() {
-                0 => function = match func {
+                0 => match func {
                     Command::PenUp => t.pen_down(),
                     Command::PenDown => t.pen_down(),
                     Command::HideTurtle => t.hide(),
