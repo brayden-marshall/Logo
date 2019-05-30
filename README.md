@@ -12,6 +12,7 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 - Backward: `bk | backward`
 - Left: `lt | left`
 - Right: `rt | right`
+- SetXY: `setxy 60 60`
 - PenUp: `pu | penup`
 - PenDown: `pd | pendown`
 - HideTurtle: `ht | hideturtle`
@@ -22,9 +23,12 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 
 ## Things to implement 
 #### Small-scale
-- SetXY: `setxy 60 60`
-- Label: `label "string literal"`
 - Repeat: `repeat 7 [ forward 100 rt 40 ]`
+- SetPenColor: `setpencolor [255 0 0] setpc [123 123 123]`
+- SetFloodColor (shape filling): `setfloodcolor [255 0 0] setfc [123 123 123]`
+- SetScreenColor: `setscreencolor [255 0 0] setsc [123 123 123]`
+- SetPenSize: `setpensize [20 20]`
+- Label: `label "string literal"`
 - Random (1 argument is max number): `forward random 100`
 - allow for reading input from a file as well as interactive shell (read incrementally rather than the whole file into memory at once)
 

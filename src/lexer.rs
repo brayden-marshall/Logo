@@ -1,15 +1,8 @@
 use regex::Regex;
 
-// short macro to simplify reading of token definitions
-macro_rules! regex {
-    ($pattern:expr) => {
-        Regex::new($pattern).unwrap();
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    Number(f64),
+    Number{literal: String},
     Command(Command),
 }
 
@@ -29,6 +22,9 @@ pub enum Command {
     Backward,
     Left,
     Right,
+
+    // 2 arity
+    SetXY
 }
 
 impl Command {
@@ -36,7 +32,10 @@ impl Command {
         use Command::*;
 
         match self {
+            SetXY => 2,
+
             Forward | Backward | Left | Right => 1,
+
             Exit | ClearScreen | PenUp | PenDown |
             HideTurtle | ShowTurtle | Home => 0,
         }
@@ -59,58 +58,66 @@ struct TokenDefinition {
 
 const NUMBER_REGEX: &str = r"^-?([0-9]+\.[0-9]+|[0-9]+)";
 
+fn regex(input: &str) -> Regex {
+    Regex::new(input).unwrap()
+}
+
 // returns a vector of the definition of every language token
 // a token definition consists of it's enumerated type and
 // it's regular expression used for parsing
 fn get_token_definitions() -> Vec<TokenDefinition> {
     vec![
         TokenDefinition { 
-            token: Token::Number(0.0), 
-            regex: regex!(NUMBER_REGEX),
+            token: Token::Number{literal: String::from("")}, 
+            regex: regex(NUMBER_REGEX),
         },
         TokenDefinition { 
             token: Token::Command(Command::Forward),
-            regex: regex!(r"^(fd|forward)"),
+            regex: regex(r"^(fd|forward)"),
         },
         TokenDefinition { 
             token: Token::Command(Command::Backward),
-            regex: regex!(r"^(bk|backward)"),
+            regex: regex(r"^(bk|backward)"),
         },
         TokenDefinition { 
             token: Token::Command(Command::Left),
-            regex: regex!(r"^(lt|left)"),
+            regex: regex(r"^(lt|left)"),
         },
         TokenDefinition { 
             token: Token::Command(Command::Right),
-            regex: regex!(r"^(rt|right)"),
+            regex: regex(r"^(rt|right)"),
         },
         TokenDefinition {
             token: Token::Command(Command::Exit),
-            regex: regex!(r"^exit"),
+            regex: regex(r"^exit"),
         },
         TokenDefinition {
             token: Token::Command(Command::ClearScreen),
-            regex: regex!(r"^(cs|clearscreen)"),
+            regex: regex(r"^(cs|clearscreen)"),
         },
         TokenDefinition {
             token: Token::Command(Command::PenUp),
-            regex: regex!(r"^(pu|penup)"),
+            regex: regex(r"^(pu|penup)"),
         },
         TokenDefinition {
             token: Token::Command(Command::PenDown),
-            regex: regex!(r"^(pd|pendown)"),
+            regex: regex(r"^(pd|pendown)"),
         },
         TokenDefinition {
             token: Token::Command(Command::HideTurtle),
-            regex: regex!(r"^(ht|hideturtle)"),
+            regex: regex(r"^(ht|hideturtle)"),
         },
         TokenDefinition {
             token: Token::Command(Command::ShowTurtle),
-            regex: regex!(r"^(st|showturtle)"),
+            regex: regex(r"^(st|showturtle)"),
         },
         TokenDefinition {
             token: Token::Command(Command::Home),
-            regex: regex!(r"^home"),
+            regex: regex(r"^home"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::SetXY),
+            regex: regex(r"^setxy"),
         },
     ]
 }
@@ -148,11 +155,10 @@ impl<'a> Iterator for Lexer<'a> {
                 let token: Option<Token>;
 
                 // special case for number because it has a value field
-                if let Token::Number(_) = def.token {
-                    token = Some(Token::Number(
-                        self.source[self.index..self.index+m.end()].parse()
-                            .expect("Error parsing numeral")
-                    ));
+                if let Token::Number{literal: _} = def.token {
+                    token = Some(Token::Number{
+                        literal: String::from(&self.source[self.index..self.index+m.end()])
+                    });
                 } else {
                     token = Some(def.token.clone());
                 }
@@ -198,8 +204,9 @@ mod tests {
         lex_test(
             "0 100 683.27 -79 -78493.123",
             vec![
-                Number(0.0), Number(100.0), Number(683.27), 
-                Number(-79.0), Number(-78493.123),
+                Number{literal: String::from("0")}, Number{literal: String::from("100")}, 
+                Number{literal: String::from("683.27")}, Number{literal: String::from("-79")}, 
+                Number{literal: String::from("-78493.123")},
             ]
         );
     }
@@ -215,13 +222,13 @@ mod tests {
         lex_test(
             "pu      penup pd pendown ht hideturtle st showturtle
             cs clearscreen home exit
-            fd forward bk backward lt left rt right
+            fd forward bk backward lt left rt right setxy
             ",
             commands!(
                 PenUp, PenUp, PenDown, PenDown, HideTurtle, HideTurtle,
                 ShowTurtle, ShowTurtle, ClearScreen, ClearScreen, Home,
                 Exit, Forward, Forward, Backward, Backward, Left, Left,
-                Right, Right
+                Right, Right, SetXY
             ),
         );
     }

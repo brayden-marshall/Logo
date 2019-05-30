@@ -62,6 +62,15 @@ fn run(t: &mut Turtle, ast: &AST) {
                         _ => (),
                     }
                 }
+                2 => 
+                    if let Expression::Number{val: arg1} = args[0] {
+                        if let Expression::Number{val: arg2} = args[1] {
+                            match func {
+                                Command::SetXY => t.go_to([arg1, arg2]),
+                                _ => (),
+                            }
+                        }
+                    }
                 _ => (),
             }
         }
