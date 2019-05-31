@@ -20,6 +20,7 @@ pub enum Command {
     ShowTurtle,
     Home,
     ClearScreen,
+    Clean,
     Exit,
 
     // 1 arity
@@ -41,7 +42,7 @@ impl Command {
 
             Forward | Backward | Left | Right => 1,
 
-            Exit | ClearScreen | PenUp | PenDown |
+            Exit | ClearScreen | Clean | PenUp | PenDown |
             HideTurtle | ShowTurtle | Home => 0,
         }
     }
@@ -99,6 +100,10 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         TokenDefinition {
             token: Token::Command(Command::ClearScreen),
             regex: regex(r"^(cs|clearscreen)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::Clean),
+            regex: regex(r"^clean"),
         },
         TokenDefinition {
             token: Token::Command(Command::PenUp),
@@ -239,13 +244,13 @@ mod tests {
         lex_test(
             "pu      penup pd pendown ht hideturtle st showturtle
             cs clearscreen home exit
-            fd forward bk backward lt left rt right setxy
+            fd forward bk backward lt left rt right setxy clean
             ",
             commands!(
                 PenUp, PenUp, PenDown, PenDown, HideTurtle, HideTurtle,
                 ShowTurtle, ShowTurtle, ClearScreen, ClearScreen, Home,
                 Exit, Forward, Forward, Backward, Backward, Left, Left,
-                Right, Right, SetXY
+                Right, Right, SetXY, Clean
             ),
         );
     }

@@ -54,7 +54,8 @@ fn run_expression(t: &mut Turtle, expr: &Expression) {
                     Command::HideTurtle => t.hide(),
                     Command::ShowTurtle => t.show(),
                     Command::Home => t.home(),
-                    Command::ClearScreen => t.clear(),
+                    Command::ClearScreen => { t.clear(); t.home() },
+                    Command::Clean => t.clear(),
 
                     Command::Exit => std::process::exit(0),
                     _ => (),

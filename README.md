@@ -19,13 +19,14 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 - PenDown: `pd | pendown`
 - HideTurtle: `ht | hideturtle`
 - ShowTurtle: `st | showturtle`
+- Repeat: `repeat 7 [ forward 100 rt 40 ]`
 - Home: `home`
 - ClearScreen: `cs | clearscreen`
+- Clean: `clean`
 - Exit (added for convenience): `exit`
 
 ## Things to implement 
 #### Small-scale
-- Repeat: `repeat 7 [ forward 100 rt 40 ]`
 - SetPenColor: `setpencolor [255 0 0] setpc [123 123 123]`
 - SetFloodColor (shape filling): `setfloodcolor [255 0 0] setfc [123 123 123]`
 - SetScreenColor: `setscreencolor [255 0 0] setsc [123 123 123]`
@@ -39,8 +40,8 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 ```
 make "angle 45
 fd 10 rt :angle
-
 ```
+
 - Procedures: 
 ```logo
 to draw_circle
@@ -53,9 +54,4 @@ end
 draw_circle
 ```
 - Arithmetic operations on numbers: `fd 100.0 + 70.0 bk sqrt 100`
-- Control Flow
-
-
-## Issues
-
-- `run()` function in `main.rs` is horrible, and does not properly deal with different function aritys
+- Control Flow (if, if-else)
