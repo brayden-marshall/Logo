@@ -35,6 +35,8 @@ pub enum Command {
 
     // 3 arity
     SetPenColor,
+    SetScreenColor,
+    SetFillColor,
 }
 
 impl Command {
@@ -50,7 +52,7 @@ impl Command {
 
             SetXY => 2,
 
-            SetPenColor => 3,
+            SetPenColor | SetScreenColor | SetFillColor => 3,
         }
     }
 }
@@ -143,6 +145,14 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         TokenDefinition {
             token: Token::Command(Command::SetPenColor),
             regex: regex(r"^(setpc|setpencolor)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::SetFillColor),
+            regex: regex(r"^(setfc|setfillcolor)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::SetScreenColor),
+            regex: regex(r"^(setsc|setscreencolor)"),
         },
         TokenDefinition {
             token: Token::Repeat,
@@ -259,14 +269,16 @@ mod tests {
             "pu      penup pd pendown ht hideturtle st showturtle
             cs clearscreen home exit
             fd forward bk backward lt left rt right setxy clean
-            setps setpensize setpc setpencolor
+            setps setpensize setpc setpencolor setfc setfillcolor
+            setsc setscreencolor
             ",
             commands!(
                 PenUp, PenUp, PenDown, PenDown, HideTurtle, HideTurtle,
                 ShowTurtle, ShowTurtle, ClearScreen, ClearScreen, Home,
                 Exit, Forward, Forward, Backward, Backward, Left, Left,
                 Right, Right, SetXY, Clean, SetPenSize, SetPenSize,
-                SetPenColor, SetPenColor
+                SetPenColor, SetPenColor, SetFillColor, SetFillColor,
+                SetScreenColor, SetScreenColor
             ),
         );
     }

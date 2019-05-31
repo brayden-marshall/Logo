@@ -84,7 +84,14 @@ fn run_expression(t: &mut Turtle, expr: &Expression) {
                 Command::SetXY => t.go_to([args[0], args[1]]),
                 
                 // 3 arity
-                Command::SetPenColor => t.set_pen_color([args[0], args[1], args[2]]),
+                Command::SetPenColor => 
+                    t.set_pen_color([args[0], args[1], args[2]]),
+                Command::SetFillColor => 
+                    t.set_fill_color([args[0], args[1], args[2]]),
+                Command::SetScreenColor => 
+                    t.drawing_mut().set_background_color(
+                        [args[0], args[1], args[2]],
+                    ),
             }
         }
 

@@ -1,5 +1,9 @@
 # Logo
 
+## Bugs
+
+- setscreencolor command not working properly, but setsc works fine
+
 ## Thoughts For Improvement
 
 Because I don't know what I'm doing, I'm just gonna brainstorm some things that I think I should be doing.
@@ -27,15 +31,15 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 - Clean: `clean`
 
 - SetPenSize: `setpensize 20`
+- SetPenColor: `setpencolor 255 0 0 setpc 123 123 123`
 - SetXY: `setxy 60 60`
 
 - Exit (added for convenience): `exit`
 
 ## Things to implement 
 #### Small-scale
-- SetPenColor: `setpencolor [255 0 0] setpc [123 123 123]`
-- SetFloodColor (shape filling): `setfloodcolor [255 0 0] setfc [123 123 123]`
-- SetScreenColor: `setscreencolor [255 0 0] setsc [123 123 123]`
+- SetFillColor (shape filling): `setfillcolor 255 0 0 setfc 123 123 123`
+- SetScreenColor: `setscreencolor 255 0 0 setsc 123 123 123`
 - Label: `label <string literal>`
 - Random (1 argument is max number): `forward random 100`
 - allow for reading input from a file as well as interactive shell (read incrementally rather than the whole file into memory at once)
