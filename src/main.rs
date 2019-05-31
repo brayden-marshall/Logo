@@ -37,10 +37,16 @@ fn run(t: &mut Turtle, ast: &AST) {
             continue;
         }
 
-        // currently a hack to get the interpreter running
-        // does not properly handle varying number of command arguments
-        // or varying argument types
-        if let Expression::Command{func, args} = expr {
+        run_expression(t, expr);
+    } 
+}
+
+fn run_expression(t: &mut Turtle, expr: &Expression) {
+    // currently a hack to get the interpreter running
+    // does not properly handle varying number of command arguments
+    // or varying argument types
+    match expr {
+        Expression::Command{func, args} => {
             match func.arity() {
                 0 => match func {
                     Command::PenUp => t.pen_down(),
@@ -74,7 +80,17 @@ fn run(t: &mut Turtle, ast: &AST) {
                 _ => (),
             }
         }
-    } 
+
+        Expression::Repeat{count, body} => {
+            for _ in 0..*count {
+                for body_expr in body.iter() {
+                    run_expression(t, body_expr);
+                }
+            }
+        }
+
+        _ => (),
+    }
 }
 
 fn get_input() -> String {

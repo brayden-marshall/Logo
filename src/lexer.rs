@@ -4,6 +4,11 @@ use regex::Regex;
 pub enum Token {
     Number{literal: String},
     Command(Command),
+
+    Repeat,
+
+    LBracket,
+    RBracket,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -118,6 +123,18 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         TokenDefinition {
             token: Token::Command(Command::SetXY),
             regex: regex(r"^setxy"),
+        },
+        TokenDefinition {
+            token: Token::Repeat,
+            regex: regex(r"^repeat"),
+        },
+        TokenDefinition {
+            token: Token::LBracket,
+            regex: regex(r"^\["),
+        },
+        TokenDefinition {
+            token: Token::RBracket,
+            regex: regex(r"^\]"),
         },
     ]
 }

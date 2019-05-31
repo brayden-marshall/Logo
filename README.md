@@ -6,6 +6,8 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 
 - remove all type-checking from the initial build of the AST, do a second pass for type-checking... this ,,should'' allow for more easily adding a symbol table later on
 
+- refactor parser.rs to mirror lexer.rs: create a parser object, that is an iterator over expressions, etc.
+
 ## Supported Commands
 
 - Forward: `fd | forward`

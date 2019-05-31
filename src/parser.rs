@@ -17,8 +17,9 @@ impl AST {
 #[derive(Debug, PartialEq)]
 pub enum Expression {
     ProgramStart,
-    Command { func: Command, args: Vec<Expression> },
     Number { val: f64 },
+    Command { func: Command, args: Vec<Expression> },
+    Repeat { count: usize, body: Vec<Expression> },
 }
 
 impl AST {
@@ -34,8 +35,12 @@ impl AST {
                 Token::Command(command) =>
                     AST::parse_command(command.clone(), &mut token_iter),
 
-                Token::Number{literal: _} => 
-                    Err("Expected command, found number literal"),
+                Token::Repeat =>
+                    AST::parse_repeat(&mut token_iter),
+                    
+                _ =>
+                    Err("Error: found unexpected token"),
+
             };
 
             match expr {
@@ -51,7 +56,7 @@ impl AST {
         command: Command, 
         tokens: &mut slice::Iter<'_, Token>
     ) -> Result<Expression, &'static str> {
-        let mut args: Vec<Expression> = vec![];
+        let mut args: Vec<Expression> = Vec::new();
         // consuming the next tokens as arguments according to how many
         // the arguments the command takes as input
         for _ in 0..command.arity() {
@@ -71,6 +76,60 @@ impl AST {
         Ok(Expression::Command {
             func: command,
             args,
+        })
+    }
+
+    fn parse_repeat(
+        mut tokens: &mut slice::Iter<'_, Token>
+    ) -> Result<Expression, &'static str> {
+        let count: usize;
+        let mut body: Vec<Expression> = Vec::new();
+
+        // check for number as next token, and assign it to 'count' if found
+        match tokens.next() {
+            Some(tok) => 
+                match tok {
+                    Token::Number{literal} => count = literal.parse().unwrap(),
+                    _ => return Err("Expected number argument after keyword 'repeat'"),
+                }
+            None => return Err("Expected number argument after keyword 'repeat'"),
+        }
+
+        // check for a left bracket to start the body of repeat command
+        match tokens.next() {
+            Some(tok) => 
+                match tok {
+                    Token::LBracket => (),
+                    _ => return Err("Expected opening bracket '[' to start repeat body"),
+                }
+            None => return Err("Expected opening bracket '[' to start repeat body"),
+        }
+
+        // parse expressions of repeat body until we find a closing bracket
+        loop {
+            let expr = 
+                match tokens.next() {
+                    Some(tok) =>
+                        match tok {
+                            Token::RBracket => break,
+
+                            Token::Command(command) =>
+                                AST::parse_command(command.clone(), &mut tokens),
+                            Token::Repeat => Err("Error: nested repeats are not currently supported"),
+                            _ => Err("Error: found unexpected token"),
+                        }
+                    None => Err("Error: invalid repeat body"),
+                };
+
+            match expr {
+                Ok(e) => body.push(e),
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(Expression::Repeat{
+            count,
+            body,
         })
     }
 }
