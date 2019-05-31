@@ -8,6 +8,9 @@ use lexer::{Lexer, Command};
 use parser::{AST, Expression};
 
 fn main() {
+    //println!("Welcome to LOGO!");
+    //println!("Enter commands in the prompt below to move the turtle");
+
     let mut input: String;
     let mut t = Turtle::new();
 
@@ -42,43 +45,46 @@ fn run(t: &mut Turtle, ast: &AST) {
 }
 
 fn run_expression(t: &mut Turtle, expr: &Expression) {
-    // currently a hack to get the interpreter running
-    // does not properly handle varying number of command arguments
-    // or varying argument types
+    // currently does not handle varying argument types,
+    // only accept LOGO number values as arguments
     match expr {
-        Expression::Command{command, args} => {
-            match command.arity() {
-                0 => match command {
-                    Command::PenUp => t.pen_down(),
-                    Command::PenDown => t.pen_down(),
-                    Command::HideTurtle => t.hide(),
-                    Command::ShowTurtle => t.show(),
-                    Command::Home => t.home(),
-                    Command::ClearScreen => { t.clear(); t.home() },
-                    Command::Clean => t.clear(),
+        Expression::ProgramStart => (),
+        Expression::Number{val: _} => (),
 
-                    Command::Exit => std::process::exit(0),
-                    _ => (),
-                },
-                1 => if let Expression::Number{val} = args[0] {
-                    match command {
-                        Command::Forward => t.forward(val),
-                        Command::Backward => t.backward(val),
-                        Command::Left => t.left(val),
-                        Command::Right => t.right(val),
-                        _ => (),
+        Expression::Command{command, args} => {
+            let args: Vec<f64> = args.iter().map(
+                |arg| {
+                    if let Expression::Number{val} = arg {
+                        *val as f64
+                    } else {
+                        panic!("Expected number argument");
                     }
                 }
-                2 => 
-                    if let Expression::Number{val: arg1} = args[0] {
-                        if let Expression::Number{val: arg2} = args[1] {
-                            match command {
-                                Command::SetXY => t.go_to([arg1, arg2]),
-                                _ => (),
-                            }
-                        }
-                    }
-                _ => (),
+            ).collect();
+
+            match command {
+                // 0 arity 
+                Command::PenUp => t.pen_up(),
+                Command::PenDown => t.pen_down(),
+                Command::HideTurtle => t.hide(),
+                Command::ShowTurtle => t.show(),
+                Command::Home => t.home(),
+                Command::ClearScreen => { t.clear(); t.home() },
+                Command::Clean => t.clear(),
+                Command::Exit => std::process::exit(0),
+
+                // 1 arity
+                Command::Forward => t.forward(args[0]),
+                Command::Backward => t.backward(args[0]),
+                Command::Left => t.left(args[0]),
+                Command::Right => t.right(args[0]),
+                Command::SetPenSize => t.set_pen_size(args[0]),
+
+                // 2 arity
+                Command::SetXY => t.go_to([args[0], args[1]]),
+                
+                // 3 arity
+                Command::SetPenColor => t.set_pen_color([args[0], args[1], args[2]]),
             }
         }
 
@@ -90,7 +96,6 @@ fn run_expression(t: &mut Turtle, expr: &Expression) {
             }
         }
 
-        _ => (),
     }
 }
 

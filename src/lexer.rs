@@ -28,9 +28,13 @@ pub enum Command {
     Backward,
     Left,
     Right,
+    SetPenSize,
 
     // 2 arity
-    SetXY
+    SetXY,
+
+    // 3 arity
+    SetPenColor,
 }
 
 impl Command {
@@ -38,12 +42,15 @@ impl Command {
         use Command::*;
 
         match self {
-            SetXY => 2,
-
-            Forward | Backward | Left | Right => 1,
-
             Exit | ClearScreen | Clean | PenUp | PenDown |
             HideTurtle | ShowTurtle | Home => 0,
+
+            Forward | Backward | Left | Right | 
+            SetPenSize  => 1,
+
+            SetXY => 2,
+
+            SetPenColor => 3,
         }
     }
 }
@@ -62,7 +69,7 @@ struct TokenDefinition {
     regex: Regex,
 }
 
-const NUMBER_REGEX: &str = r"^-?([0-9]+\.[0-9]+|[0-9]+)";
+const NUMBER_REGEX: &str = r"^-?[0-9]+";
 
 fn regex(input: &str) -> Regex {
     Regex::new(input).unwrap()
@@ -128,6 +135,14 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         TokenDefinition {
             token: Token::Command(Command::SetXY),
             regex: regex(r"^setxy"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::SetPenSize),
+            regex: regex(r"^(setps|setpensize)"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::SetPenColor),
+            regex: regex(r"^(setpc|setpencolor)"),
         },
         TokenDefinition {
             token: Token::Repeat,
@@ -201,13 +216,13 @@ mod tests {
     #[test]
     fn number_regex_test() {
         let number_regex = Regex::new(NUMBER_REGEX).unwrap();
-        let test_strings = vec!["1", "123456789", "1.0", "123456789.987654321"];
-        let test_positions = vec![(0, 1), (0, 9), (0, 3), (0, 19)];
+        let test_strings = vec!["1", "123456789", "-567", "-2943090"];
+        let test_positions = vec![1, 9, 4, 8];
 
         for i in 0..test_strings.len() {
             if let Some(m) = number_regex.find(test_strings[i]) {
-                assert_eq!(m.start(), test_positions[i].0);
-                assert_eq!(m.end(), test_positions[i].1);
+                assert_eq!(m.start(), 0);
+                assert_eq!(m.end(), test_positions[i]);
             } else {
                 panic!("Match not found");
             }
@@ -224,11 +239,10 @@ mod tests {
     fn lex_number_test() {
         use Token::Number;
         lex_test(
-            "0 100 683.27 -79 -78493.123",
+            "0 100 -79 ",
             vec![
                 Number{literal: String::from("0")}, Number{literal: String::from("100")}, 
-                Number{literal: String::from("683.27")}, Number{literal: String::from("-79")}, 
-                Number{literal: String::from("-78493.123")},
+                Number{literal: String::from("-79")}, 
             ]
         );
     }
@@ -245,12 +259,14 @@ mod tests {
             "pu      penup pd pendown ht hideturtle st showturtle
             cs clearscreen home exit
             fd forward bk backward lt left rt right setxy clean
+            setps setpensize setpc setpencolor
             ",
             commands!(
                 PenUp, PenUp, PenDown, PenDown, HideTurtle, HideTurtle,
                 ShowTurtle, ShowTurtle, ClearScreen, ClearScreen, Home,
                 Exit, Forward, Forward, Backward, Backward, Left, Left,
-                Right, Right, SetXY, Clean
+                Right, Right, SetXY, Clean, SetPenSize, SetPenSize,
+                SetPenColor, SetPenColor
             ),
         );
     }

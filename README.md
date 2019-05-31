@@ -8,21 +8,27 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 
 - refactor parser.rs to mirror lexer.rs: create a parser object, that is an iterator over expressions, etc.
 
+- remove support in lexer and parser for floating point numbers
+
 ## Supported Commands
 
 - Forward: `fd | forward`
 - Backward: `bk | backward`
 - Left: `lt | left`
 - Right: `rt | right`
-- SetXY: `setxy 60 60`
+- Repeat (can be nested): `repeat 7 [ forward 100 rt 40 ]`
+
 - PenUp: `pu | penup`
 - PenDown: `pd | pendown`
 - HideTurtle: `ht | hideturtle`
 - ShowTurtle: `st | showturtle`
-- Repeat: `repeat 7 [ forward 100 rt 40 ]`
 - Home: `home`
 - ClearScreen: `cs | clearscreen`
 - Clean: `clean`
+
+- SetPenSize: `setpensize 20`
+- SetXY: `setxy 60 60`
+
 - Exit (added for convenience): `exit`
 
 ## Things to implement 
@@ -30,8 +36,7 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 - SetPenColor: `setpencolor [255 0 0] setpc [123 123 123]`
 - SetFloodColor (shape filling): `setfloodcolor [255 0 0] setfc [123 123 123]`
 - SetScreenColor: `setscreencolor [255 0 0] setsc [123 123 123]`
-- SetPenSize: `setpensize [20 20]`
-- Label: `label "string literal"`
+- Label: `label <string literal>`
 - Random (1 argument is max number): `forward random 100`
 - allow for reading input from a file as well as interactive shell (read incrementally rather than the whole file into memory at once)
 
@@ -53,5 +58,5 @@ end
 
 draw_circle
 ```
-- Arithmetic operations on numbers: `fd 100.0 + 70.0 bk sqrt 100`
+- Arithmetic operations on numbers: `fd 100 + 70 bk sqrt 100`
 - Control Flow (if, if-else)

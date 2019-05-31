@@ -17,7 +17,7 @@ impl AST {
 #[derive(Debug, PartialEq)]
 pub enum Expression {
     ProgramStart,
-    Number { val: f64 },
+    Number { val: isize },
     Command { command: Command, args: Vec<Expression> },
     Repeat { count: usize, body: Vec<Expression> },
 }
@@ -155,14 +155,14 @@ mod tests {
         parse_test(
             vec![
                 Token::Command(Command::Forward), 
-                Token::Number{literal: String::from("70.0")},
+                Token::Number{literal: String::from("70")},
             ],
             AST {
                 expressions: vec! [
                     Expression::ProgramStart,
                     Expression::Command {
                         command: Command::Forward,
-                        args: vec![Expression::Number{val: 70.0}],
+                        args: vec![Expression::Number{val: 70}],
                     },
                 ],
             }
@@ -182,8 +182,8 @@ mod tests {
     fn parse_too_many_arguments_test() {
         // too many arguments for command forward "fd 100 101"
         AST::build(&vec![
-            Token::Command(Command::Forward), Token::Number{literal: String::from("100.0")},
-            Token::Number{literal: String::from("101.0")},
+            Token::Command(Command::Forward), Token::Number{literal: String::from("100")},
+            Token::Number{literal: String::from("101")},
         ]).unwrap();
     }
 
@@ -201,8 +201,8 @@ mod tests {
                     Expression::Command {
                         command: Command::SetXY,
                         args: vec![
-                            Expression::Number{val: -60.0},
-                            Expression::Number{val: 60.0},
+                            Expression::Number{val: -60},
+                            Expression::Number{val: 60},
                         ],
                     },
                 ],
@@ -230,7 +230,7 @@ mod tests {
                                     command: Command::Forward,
                                     args: vec![
                                         Expression::Number {
-                                            val: 50.0,
+                                            val: 50,
                                         }
                                     ]
                                 }
@@ -263,7 +263,7 @@ mod tests {
                                 command: Command::Forward,
                                 args: vec![
                                     Expression::Number {
-                                        val: 50.0,
+                                        val: 50,
                                     }
                                 ]
                             },
@@ -275,7 +275,7 @@ mod tests {
                                         command: Command::Right,
                                         args: vec![
                                             Expression::Number{
-                                                val: 1.0,
+                                                val: 1,
                                             }
                                         ]
                                     }
