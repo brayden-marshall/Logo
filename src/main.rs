@@ -46,9 +46,9 @@ fn run_expression(t: &mut Turtle, expr: &Expression) {
     // does not properly handle varying number of command arguments
     // or varying argument types
     match expr {
-        Expression::Command{func, args} => {
-            match func.arity() {
-                0 => match func {
+        Expression::Command{command, args} => {
+            match command.arity() {
+                0 => match command {
                     Command::PenUp => t.pen_down(),
                     Command::PenDown => t.pen_down(),
                     Command::HideTurtle => t.hide(),
@@ -61,7 +61,7 @@ fn run_expression(t: &mut Turtle, expr: &Expression) {
                     _ => (),
                 },
                 1 => if let Expression::Number{val} = args[0] {
-                    match func {
+                    match command {
                         Command::Forward => t.forward(val),
                         Command::Backward => t.backward(val),
                         Command::Left => t.left(val),
@@ -72,7 +72,7 @@ fn run_expression(t: &mut Turtle, expr: &Expression) {
                 2 => 
                     if let Expression::Number{val: arg1} = args[0] {
                         if let Expression::Number{val: arg2} = args[1] {
-                            match func {
+                            match command {
                                 Command::SetXY => t.go_to([arg1, arg2]),
                                 _ => (),
                             }

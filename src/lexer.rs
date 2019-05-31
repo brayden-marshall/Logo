@@ -254,4 +254,16 @@ mod tests {
             ),
         );
     }
+
+    #[test]
+    fn lex_repeat_test() {
+        lex_test(
+            "repeat 7 [ forward 100 ]",
+            vec![
+                Token::Repeat, Token::Number{literal: String::from("7")}, Token::LBracket,
+                Token::Command(Command::Forward), Token::Number{literal: String::from("100")},
+                Token::RBracket
+            ]
+        );
+    }
 }

@@ -18,13 +18,13 @@ impl AST {
 pub enum Expression {
     ProgramStart,
     Number { val: f64 },
-    Command { func: Command, args: Vec<Expression> },
+    Command { command: Command, args: Vec<Expression> },
     Repeat { count: usize, body: Vec<Expression> },
 }
 
 impl AST {
     // main parsing logic. currently does not handle varying argument types
-    pub fn build(tokens: &Vec<Token>) -> Result<AST, &'static str> {
+    pub fn build(tokens: &Vec<Token>) -> Result<AST, String> {
         let mut ast = AST::new();
 
         let mut token_iter = tokens.iter();
@@ -39,7 +39,7 @@ impl AST {
                     AST::parse_repeat(&mut token_iter),
                     
                 _ =>
-                    Err("Error: found unexpected token"),
+                    Err("Error: found unexpected token".to_string()),
 
             };
 
@@ -55,7 +55,7 @@ impl AST {
     fn parse_command(
         command: Command, 
         tokens: &mut slice::Iter<'_, Token>
-    ) -> Result<Expression, &'static str> {
+    ) -> Result<Expression, String> {
         let mut args: Vec<Expression> = Vec::new();
         // consuming the next tokens as arguments according to how many
         // the arguments the command takes as input
@@ -67,42 +67,48 @@ impl AST {
                             val: literal.parse().unwrap(),
                         }
                     ),
-                    _ => return Err("Expected number argument"),
+                    _ => return Err("Expected number argument".to_string()),
                 }
-                None => return Err("Not enough arguments"),
+                None => return Err("Not enough arguments".to_string()),
             }
         }
 
         Ok(Expression::Command {
-            func: command,
+            command: command,
             args,
         })
     }
 
     fn parse_repeat(
         mut tokens: &mut slice::Iter<'_, Token>
-    ) -> Result<Expression, &'static str> {
-        let count: usize;
+    ) -> Result<Expression, String> {
         let mut body: Vec<Expression> = Vec::new();
 
-        // check for number as next token, and assign it to 'count' if found
-        match tokens.next() {
+        // check that the next number is a number, and parse it
+        let count: Result<usize, _> = match tokens.next() {
             Some(tok) => 
                 match tok {
-                    Token::Number{literal} => count = literal.parse().unwrap(),
-                    _ => return Err("Expected number argument after keyword 'repeat'"),
+                    Token::Number{literal} => literal.parse(),
+                    _ => return Err("Expected number argument after keyword 'repeat'".to_string()),
                 }
-            None => return Err("Expected number argument after keyword 'repeat'"),
-        }
+            None => return Err("Expected number argument after keyword 'repeat'".to_string()),
+        };
+
+        // handle the possible integer parsing error
+        // this error will happen when a float is passed as the argument to repeat
+        let count: usize = match count {
+            Ok(n) => n,
+            Err(e) => return Err(e.to_string()),
+        };
 
         // check for a left bracket to start the body of repeat command
         match tokens.next() {
             Some(tok) => 
                 match tok {
                     Token::LBracket => (),
-                    _ => return Err("Expected opening bracket '[' to start repeat body"),
+                    _ => return Err("Expected opening bracket '[' to start repeat body".to_string()),
                 }
-            None => return Err("Expected opening bracket '[' to start repeat body"),
+            None => return Err("Expected opening bracket '[' to start repeat body".to_string()),
         }
 
         // parse expressions of repeat body until we find a closing bracket
@@ -115,10 +121,11 @@ impl AST {
 
                             Token::Command(command) =>
                                 AST::parse_command(command.clone(), &mut tokens),
-                            Token::Repeat => Err("Error: nested repeats are not currently supported"),
-                            _ => Err("Error: found unexpected token"),
+                            Token::Repeat =>
+                                AST::parse_repeat(&mut tokens),
+                            _ => Err("Error: found unexpected token".to_string()),
                         }
-                    None => Err("Error: invalid repeat body"),
+                    None => Err("Error: invalid repeat body".to_string()),
                 };
 
             match expr {
@@ -154,7 +161,7 @@ mod tests {
                 expressions: vec! [
                     Expression::ProgramStart,
                     Expression::Command {
-                        func: Command::Forward,
+                        command: Command::Forward,
                         args: vec![Expression::Number{val: 70.0}],
                     },
                 ],
@@ -192,7 +199,7 @@ mod tests {
                 expressions: vec![
                     Expression::ProgramStart,
                     Expression::Command {
-                        func: Command::SetXY,
+                        command: Command::SetXY,
                         args: vec![
                             Expression::Number{val: -60.0},
                             Expression::Number{val: 60.0},
@@ -200,6 +207,84 @@ mod tests {
                     },
                 ],
             }
+        );
+    }
+
+    #[test]
+    fn parse_repeat_test() {
+        // source: repeat 10 [ forward 50 ]
+        parse_test(
+            vec![
+                Token::Repeat, Token::Number{literal: String::from("10")},
+                Token::LBracket, Token::Command(Command::Forward),
+                Token::Number{literal: String::from("50")}, Token::RBracket,
+            ],
+            AST {
+                expressions: vec![
+                    Expression::ProgramStart,
+                    Expression::Repeat {
+                        count: 10,
+                        body:
+                            vec![
+                                Expression::Command {
+                                    command: Command::Forward,
+                                    args: vec![
+                                        Expression::Number {
+                                            val: 50.0,
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                ]
+            },
+        );
+    }
+
+    #[test]
+    fn parse_nested_repeat_test() {
+        // source: repeat 10 [ forward 50 repeat 45 [ rt 1 ] ]
+        parse_test(
+            vec![
+                Token::Repeat, Token::Number{literal: String::from("10")},
+                Token::LBracket, Token::Command(Command::Forward),
+                Token::Number{literal: String::from("50")}, Token::Repeat,
+                Token::Number{literal: String::from("45")}, Token::LBracket,
+                Token::Command(Command::Right), Token::Number{literal: String::from("1")},
+                Token::RBracket, Token::RBracket,
+            ],
+            AST {
+                expressions: vec![
+                    Expression::ProgramStart,
+                    Expression::Repeat {
+                        count: 10,
+                        body: vec![
+                            Expression::Command {
+                                command: Command::Forward,
+                                args: vec![
+                                    Expression::Number {
+                                        val: 50.0,
+                                    }
+                                ]
+                            },
+
+                            Expression::Repeat {
+                                count: 45,
+                                body: vec![
+                                    Expression::Command {
+                                        command: Command::Right,
+                                        args: vec![
+                                            Expression::Number{
+                                                val: 1.0,
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
         );
     }
 }
