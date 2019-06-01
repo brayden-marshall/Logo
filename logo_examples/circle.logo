@@ -1,0 +1,5 @@
+clearscreen
+repeat 360 [
+    fd 2
+    rt 1
+]

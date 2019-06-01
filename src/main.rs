@@ -1,4 +1,7 @@
 use std::io::{self, Write};
+use std::env;
+use std::fs;
+
 use turtle::Turtle;
 
 mod lexer;
@@ -10,13 +13,21 @@ use parser::{AST, Expression};
 fn main() {
     //println!("Welcome to LOGO!");
     //println!("Enter commands in the prompt below to move the turtle");
+    let mut args = env::args();
 
-    let mut input: String;
+    // throwaway first argument (executable name)
+    args.next();
+
+    // check if a file argument was passed
+    let file = args.next();
+
     let mut t = Turtle::new();
+    let mut input = match file {
+        Some(f) => fs::read_to_string(f).unwrap(),
+        None => get_input(),
+    };
 
     loop {
-        input = get_input();
-
         // lexing input and returning vector of tokens
         let lexer = Lexer::new(&input);
         let tokens = lexer.collect();
@@ -31,6 +42,8 @@ fn main() {
             }
             Err(e) => println!("{}", e),
         }
+
+        input = get_input();
     }
 }
 

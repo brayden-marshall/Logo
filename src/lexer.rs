@@ -152,7 +152,9 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         },
         TokenDefinition {
             token: Token::Command(Command::SetScreenColor),
-            regex: regex(r"^(setsc|setscreencolor)"),
+            // order of two strings between | must stay this way
+            // if switched, full name will not be properly detected
+            regex: regex(r"^(setscreencolor|setsc)"),
         },
         TokenDefinition {
             token: Token::Repeat,
@@ -291,6 +293,20 @@ mod tests {
                 Token::Repeat, Token::Number{literal: String::from("7")}, Token::LBracket,
                 Token::Command(Command::Forward), Token::Number{literal: String::from("100")},
                 Token::RBracket
+            ]
+        );
+    }
+
+    // this test was added because there was a bug with setscreencolor command
+    #[test]
+    fn lex_set_screen_color_test() {
+        lex_test(
+            "setscreencolor 100 100 100",
+            vec![
+                Token::Command(Command::SetScreenColor),
+                Token::Number{literal: String::from("100")},
+                Token::Number{literal: String::from("100")},
+                Token::Number{literal: String::from("100")},
             ]
         );
     }
