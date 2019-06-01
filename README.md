@@ -3,6 +3,7 @@
 ## Bugs
 
 - commands that take three RGB values as input do not have any range checking on arguments
+- Lexer does not properly return errors: create a custom error type `LexResult` and have lexer.next() return Option<LexResult>
 
 ## Thoughts For Improvement
 
@@ -12,10 +13,8 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 
 - refactor parser.rs to mirror lexer.rs: create a parser object, that is an iterator over expressions, etc.
 
-- remove support in lexer and parser for floating point numbers
-
 #### CLI Improvements
-- allow for reading input from a file as well as interactive shell (read incrementally rather than the whole file into memory at once)
+- (DONE) allow for reading input from a file as well as interactive shell (read incrementally rather than the whole file into memory at once)
 - add verbosity option to allow printing debug statements or not
 
 ## Supported Commands
@@ -44,7 +43,7 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 
 ## Things to implement 
 #### Small-scale
-- Fill (fill enclosed shape): `fill`
+- Fill (fill enclosed shape, fill is not currently implemented in the `turtle` library, so this may be tricky): `fill`
 - Label: `label <string literal>`
 - Random (1 argument is max number): `forward random 100`
 

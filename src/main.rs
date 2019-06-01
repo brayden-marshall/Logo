@@ -1,8 +1,8 @@
 use std::io::{self, Write};
-use std::env;
 use std::fs;
 
 use turtle::Turtle;
+use clap::{App, Arg};
 
 mod lexer;
 mod parser;
@@ -11,33 +11,40 @@ use lexer::{Lexer, Command};
 use parser::{AST, Expression};
 
 fn main() {
-    //println!("Welcome to LOGO!");
-    //println!("Enter commands in the prompt below to move the turtle");
-    let mut args = env::args();
-
-    // throwaway first argument (executable name)
-    args.next();
-
-    // check if a file argument was passed
-    let file = args.next();
+    let matches = App::new("Logo")
+                          .version("0.1.0")
+                          .author("Brayden Marshall <bmarsh579@gmail.com>")
+                          .about("A Logo interpreter written in Rust")
+                          .arg(Arg::with_name("SCRIPT")
+                                .help("Program read from script file")
+                                .required(false)
+                                .index(1))
+                          .arg(Arg::with_name("debug")
+                                .short("d")
+                                .long("debug")
+                                .help("Print debug information")
+                                .takes_value(false))
+                          .get_matches();
 
     let mut t = Turtle::new();
-    let mut input = match file {
+    let mut input = match matches.value_of("SCRIPT") {
         Some(f) => fs::read_to_string(f).unwrap(),
         None => get_input(),
     };
+
+    let debug: bool = matches.is_present("debug");
 
     loop {
         // lexing input and returning vector of tokens
         let lexer = Lexer::new(&input);
         let tokens = lexer.collect();
-        println!("{:?}", tokens);
+        if debug { println!("{:?}", tokens); }
 
         // building the AST out of the tokens and running the program
         // based off of the AST
         match AST::build(&tokens) {
             Ok(ast) => {
-                println!("{:?}", ast);
+                if debug { println!("{:?}", ast); }
                 run(&mut t, &ast);
             }
             Err(e) => println!("{}", e),
