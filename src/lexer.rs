@@ -1,4 +1,6 @@
 use regex::Regex;
+#[allow(unused_imports)]
+use std::iter::FromIterator;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
@@ -65,6 +67,13 @@ pub struct Lexer<'a> {
     index: usize,
     token_definitions: Vec<TokenDefinition>,
 }
+
+#[derive(Debug)]
+pub enum LexError {
+    NoMatchingToken,
+}
+
+type LexResult = Result<Token, LexError>;
 
 struct TokenDefinition {
     token: Token,
@@ -181,43 +190,55 @@ impl<'a> Lexer<'a> {
     }
 
     // increasing internal index to the first non-whitespace character
-    // FIXME: currently an inefficient use of regex compiling. Should ideally
-    // use builtin char.is_whitespace() or perhaps a dedicated whitespace-handler
-    // type to avoid extra regex compilation
     fn skip_whitespace(&mut self) {
-        let whitespace_regex = Regex::new("^[\t\n\x20]").unwrap();
-        while whitespace_regex.is_match(&self.source[self.index..]) {
-            self.index += 1;
+        let whitespace_chars = ["\t", "\n", "\x20"];
+        let mut whitespace_found = true;
+        while whitespace_found {
+            whitespace_found = false;
+            for chr in whitespace_chars.iter() {
+                if self.source[self.index..].starts_with(chr) {
+                    whitespace_found = true;
+                    self.index += 1;
+                    break;
+                }
+            }
         }
     }
 }
 
 // the main functionality of the Lexer being implemented as an Iterator
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
+    type Item = LexResult;
     fn next(&mut self) -> Option<Self::Item> {
         self.skip_whitespace();
+
+        // if we have reached the end of source, return None
+        if self.index == self.source.len() {
+            return None;
+        }
 
         for def in self.token_definitions.iter() {
             // if we find a match for the current token
             if let Some(m) = def.regex.find(&self.source[self.index..]) {
-                let token: Option<Token>;
 
                 // special case for number because it has a value field
-                if let Token::Number{literal: _} = def.token {
-                    token = Some(Token::Number{
-                        literal: String::from(&self.source[self.index..self.index+m.end()])
-                    });
+                let token = if let Token::Number{literal: _} = def.token {
+                    Token::Number{
+                        literal: String::from(
+                                 &self.source[self.index..self.index+m.end()])
+                    }
                 } else {
-                    token = Some(def.token.clone());
-                }
+                    def.token.clone()
+                };
+
                 // increasing internal index counter by the number of characters
                 // the token consumed
                 self.index += m.end();
-                return token;
+                return Some(Ok(token));
             }
         }
-        None
+
+        Some(Err(LexError::NoMatchingToken))
     }
 }
 
@@ -243,7 +264,7 @@ mod tests {
 
     fn lex_test(input: &str, expected: Vec<Token>) {
         let lexer = Lexer::new(input);
-        let output_vec: Vec<Token> = lexer.collect();
+        let output_vec = Vec::from_iter(lexer.map(|tok| tok.unwrap()));
         assert_eq!(output_vec, expected);
     }
 

@@ -1,21 +1,19 @@
 # Logo
 
-## Bugs
+## Issues
 
 - commands that take three RGB values as input do not have any range checking on arguments
-- Lexer does not properly return errors: create a custom error type `LexResult` and have lexer.next() return Option<LexResult>
+
+- LexError type is currently incomplete; add more error variants to cover specific situations
+
+- `parser.rs` is returning String as an error type; implement a ParseError type with required variants
 
 ## Thoughts For Improvement
 
 Because I don't know what I'm doing, I'm just gonna brainstorm some things that I think I should be doing.
 
 - remove all type-checking from the initial build of the AST, do a second pass for type-checking... this ,,should'' allow for more easily adding a symbol table later on
-
-- refactor parser.rs to mirror lexer.rs: create a parser object, that is an iterator over expressions, etc.
-
-#### CLI Improvements
-- (DONE) allow for reading input from a file as well as interactive shell (read incrementally rather than the whole file into memory at once)
-- add verbosity option to allow printing debug statements or not
+- refactor parser.rs to mirror lexer.rs: create a parser object, that is an iterator over expressions, etc. (not sure about this, expect further humming and hawing)
 
 ## Supported Commands
 
@@ -48,6 +46,7 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 - Random (1 argument is max number): `forward random 100`
 
 #### Large-scale
+- Arithmetic operations on numbers: `fd 100 + 70 bk sqrt 100`
 - Variables: 
 ```
 make "angle 45
@@ -65,5 +64,4 @@ end
 
 draw_circle
 ```
-- Arithmetic operations on numbers: `fd 100 + 70 bk sqrt 100`
 - Control Flow (if, if-else)

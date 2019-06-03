@@ -7,7 +7,7 @@ use clap::{App, Arg};
 mod lexer;
 mod parser;
 
-use lexer::{Lexer, Command};
+use lexer::{Lexer, Command, Token};
 use parser::{AST, Expression};
 
 fn main() {
@@ -27,34 +27,47 @@ fn main() {
                           .get_matches();
 
     let mut t = Turtle::new();
-    let mut input = match matches.value_of("SCRIPT") {
-        Some(f) => fs::read_to_string(f).unwrap(),
-        None => get_input(),
-    };
-
     let debug: bool = matches.is_present("debug");
+    // if a script argument was passed, run the script
+    if let Some(file) = matches.value_of("SCRIPT") {
+        run_program(&mut t, &fs::read_to_string(file).unwrap(), debug);
+    }
 
+    // running interactive shell
     loop {
-        // lexing input and returning vector of tokens
-        let lexer = Lexer::new(&input);
-        let tokens = lexer.collect();
-        if debug { println!("{:?}", tokens); }
+        let input = get_input();
 
-        // building the AST out of the tokens and running the program
-        // based off of the AST
-        match AST::build(&tokens) {
-            Ok(ast) => {
-                if debug { println!("{:?}", ast); }
-                run(&mut t, &ast);
-            }
-            Err(e) => println!("{}", e),
-        }
-
-        input = get_input();
+        run_program(&mut t, &input, debug);
     }
 }
 
-fn run(t: &mut Turtle, ast: &AST) {
+fn run_program(mut t: &mut Turtle, input: &str, debug: bool) {
+    // lexing input and returning vector of tokens
+    let mut lexer = Lexer::new(&input);
+    let mut tokens: Vec<Token> = Vec::new();
+    while let Some(lex_result) = lexer.next() {
+        match lex_result {
+            Ok(tok) => tokens.push(tok),
+            Err(e) => {
+                println!("{:?}", e);
+                return;
+            },
+        }
+    }
+    if debug { println!("{:?}", tokens); }
+
+    // building the AST out of the tokens and running the program
+    // based off of the AST
+    match AST::build(&tokens) {
+        Ok(ast) => {
+            if debug { println!("{:?}", ast); }
+            run_ast(&mut t, &ast);
+        }
+        Err(e) => println!("{}", e),
+    }
+}
+
+fn run_ast(t: &mut Turtle, ast: &AST) {
     for expr in ast.expressions.iter() {
         if let Expression::ProgramStart = expr {
             continue;
