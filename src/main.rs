@@ -63,7 +63,7 @@ fn run_program(mut t: &mut Turtle, input: &str, debug: bool) {
             if debug { println!("{:?}", ast); }
             run_ast(&mut t, &ast);
         }
-        Err(e) => println!("{}", e),
+        Err(e) => println!("{:?}", e),
     }
 }
 
@@ -104,6 +104,7 @@ fn run_expression(t: &mut Turtle, expr: &Expression) {
                 Command::Home => t.home(),
                 Command::ClearScreen => { t.clear(); t.home() },
                 Command::Clean => t.clear(),
+                Command::Fill => println!("Fill not yet implemented"),
                 Command::Exit => std::process::exit(0),
 
                 // 1 arity

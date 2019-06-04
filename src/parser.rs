@@ -22,9 +22,17 @@ pub enum Expression {
     Repeat { count: usize, body: Vec<Expression> },
 }
 
+#[derive(Debug)]
+pub enum ParseError {
+    EOF,
+    UnexpectedToken,
+    TypeError,
+    ParseInteger,
+}
+
 impl AST {
     // main parsing logic. currently does not handle varying argument types
-    pub fn build(tokens: &Vec<Token>) -> Result<AST, String> {
+    pub fn build(tokens: &Vec<Token>) -> Result<AST, ParseError> {
         let mut ast = AST::new();
 
         let mut token_iter = tokens.iter();
@@ -39,7 +47,7 @@ impl AST {
                     AST::parse_repeat(&mut token_iter),
                     
                 _ =>
-                    Err("Error: found unexpected token".to_string()),
+                    Err(ParseError::UnexpectedToken),
 
             };
 
@@ -55,7 +63,7 @@ impl AST {
     fn parse_command(
         command: Command, 
         tokens: &mut slice::Iter<'_, Token>
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, ParseError> {
         let mut args: Vec<Expression> = Vec::new();
         // consuming the next tokens as arguments according to how many
         // the arguments the command takes as input
@@ -67,21 +75,23 @@ impl AST {
                             val: literal.parse().unwrap(),
                         }
                     ),
-                    _ => return Err("Expected number argument".to_string()),
+                    //_ => return Err("Expected number argument".to_string()),
+                    _ => return Err(ParseError::TypeError),
                 }
-                None => return Err("Not enough arguments".to_string()),
+                //None => return Err("Not enough arguments".to_string()),
+                None => return Err(ParseError::EOF),
             }
         }
 
         Ok(Expression::Command {
-            command: command,
+            command,
             args,
         })
     }
 
     fn parse_repeat(
         mut tokens: &mut slice::Iter<'_, Token>
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, ParseError> {
         let mut body: Vec<Expression> = Vec::new();
 
         // check that the next number is a number, and parse it
@@ -89,16 +99,18 @@ impl AST {
             Some(tok) => 
                 match tok {
                     Token::Number{literal} => literal.parse(),
-                    _ => return Err("Expected number argument after keyword 'repeat'".to_string()),
+                    _ => return Err(ParseError::TypeError),
+                    //_ => return Err("Expected number argument after keyword 'repeat'".to_string()),
                 }
-            None => return Err("Expected number argument after keyword 'repeat'".to_string()),
+            //None => return Err("Expected number argument after keyword 'repeat'".to_string()),
+            None => return Err(ParseError::TypeError),
         };
 
         // handle the possible integer parsing error
         // this error will happen when a float is passed as the argument to repeat
         let count: usize = match count {
             Ok(n) => n,
-            Err(e) => return Err(e.to_string()),
+            Err(_) => return Err(ParseError::ParseInteger),
         };
 
         // check for a left bracket to start the body of repeat command
@@ -106,9 +118,11 @@ impl AST {
             Some(tok) => 
                 match tok {
                     Token::LBracket => (),
-                    _ => return Err("Expected opening bracket '[' to start repeat body".to_string()),
+                    //_ => return Err("Expected opening bracket '[' to start repeat body".to_string()),
+                    _ => return Err(ParseError::UnexpectedToken),
                 }
-            None => return Err("Expected opening bracket '[' to start repeat body".to_string()),
+            //None => return Err("Expected opening bracket '[' to start repeat body".to_string()),
+            None => return Err(ParseError::UnexpectedToken),
         }
 
         // parse expressions of repeat body until we find a closing bracket
@@ -123,9 +137,10 @@ impl AST {
                                 AST::parse_command(command.clone(), &mut tokens),
                             Token::Repeat =>
                                 AST::parse_repeat(&mut tokens),
-                            _ => Err("Error: found unexpected token".to_string()),
+                            _ => Err(ParseError::UnexpectedToken),
+                            //_ => Err("Error: found unexpected token".to_string()),
                         }
-                    None => Err("Error: invalid repeat body".to_string()),
+                    None => Err(ParseError::EOF),
                 };
 
             match expr {

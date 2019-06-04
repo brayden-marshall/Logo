@@ -4,8 +4,6 @@
 
 - commands that take three RGB values as input do not have any range checking on arguments
 
-- LexError type is currently incomplete; add more error variants to cover specific situations
-
 - `parser.rs` is returning String as an error type; implement a ParseError type with required variants
 
 ## Thoughts For Improvement

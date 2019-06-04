@@ -23,6 +23,7 @@ pub enum Command {
     Home,
     ClearScreen,
     Clean,
+    Fill,
     Exit,
 
     // 1 arity
@@ -47,7 +48,7 @@ impl Command {
 
         match self {
             Exit | ClearScreen | Clean | PenUp | PenDown |
-            HideTurtle | ShowTurtle | Home => 0,
+            HideTurtle | ShowTurtle | Home | Fill => 0,
 
             Forward | Backward | Left | Right | 
             SetPenSize  => 1,
@@ -70,7 +71,7 @@ pub struct Lexer<'a> {
 
 #[derive(Debug)]
 pub enum LexError {
-    NoMatchingToken,
+    UnrecognizedToken,
 }
 
 type LexResult = Result<Token, LexError>;
@@ -166,6 +167,10 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
             regex: regex(r"^(setscreencolor|setsc)"),
         },
         TokenDefinition {
+            token: Token::Command(Command::Fill),
+            regex: regex(r"^fill"),
+        },
+        TokenDefinition {
             token: Token::Repeat,
             regex: regex(r"^repeat"),
         },
@@ -238,7 +243,7 @@ impl<'a> Iterator for Lexer<'a> {
             }
         }
 
-        Some(Err(LexError::NoMatchingToken))
+        Some(Err(LexError::UnrecognizedToken))
     }
 }
 
@@ -293,7 +298,7 @@ mod tests {
             cs clearscreen home exit
             fd forward bk backward lt left rt right setxy clean
             setps setpensize setpc setpencolor setfc setfillcolor
-            setsc setscreencolor
+            setsc setscreencolor fill
             ",
             commands!(
                 PenUp, PenUp, PenDown, PenDown, HideTurtle, HideTurtle,
@@ -301,7 +306,7 @@ mod tests {
                 Exit, Forward, Forward, Backward, Backward, Left, Left,
                 Right, Right, SetXY, Clean, SetPenSize, SetPenSize,
                 SetPenColor, SetPenColor, SetFillColor, SetFillColor,
-                SetScreenColor, SetScreenColor
+                SetScreenColor, SetScreenColor, Fill
             ),
         );
     }
