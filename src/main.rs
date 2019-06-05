@@ -83,6 +83,8 @@ fn run_expression(t: &mut Turtle, expr: &Expression) {
     match expr {
         Expression::ProgramStart => (),
         Expression::Number{val: _} => (),
+        Expression::Word{literal: _} => (),
+        Expression::VariableDeclaration{name: _, val: _} => (),
 
         Expression::Command{command, args} => {
             let args: Vec<f64> = args.iter().map(

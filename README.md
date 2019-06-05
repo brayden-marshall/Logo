@@ -4,14 +4,11 @@
 
 - commands that take three RGB values as input do not have any range checking on arguments
 
-- `parser.rs` is returning String as an error type; implement a ParseError type with required variants
-
 ## Thoughts For Improvement
 
 Because I don't know what I'm doing, I'm just gonna brainstorm some things that I think I should be doing.
 
 - remove all type-checking from the initial build of the AST, do a second pass for type-checking... this ,,should'' allow for more easily adding a symbol table later on
-- refactor parser.rs to mirror lexer.rs: create a parser object, that is an iterator over expressions, etc. (not sure about this, expect further humming and hawing)
 
 ## Supported Commands
 

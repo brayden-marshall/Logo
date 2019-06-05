@@ -4,11 +4,12 @@ use std::iter::FromIterator;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    Number{literal: String},
+    Number { literal: String },
     Command(Command),
+    Word { literal: String },
 
     Repeat,
-
+    Make,
     LBracket,
     RBracket,
 }
@@ -47,11 +48,10 @@ impl Command {
         use Command::*;
 
         match self {
-            Exit | ClearScreen | Clean | PenUp | PenDown |
-            HideTurtle | ShowTurtle | Home | Fill => 0,
+            Exit | ClearScreen | Clean | PenUp | PenDown | HideTurtle | ShowTurtle | Home
+            | Fill => 0,
 
-            Forward | Backward | Left | Right | 
-            SetPenSize  => 1,
+            Forward | Backward | Left | Right | SetPenSize => 1,
 
             SetXY => 2,
 
@@ -82,6 +82,7 @@ struct TokenDefinition {
 }
 
 const NUMBER_REGEX: &str = r"^-?[0-9]+";
+const WORD_REGEX: &str = r#"^"[a-zA-Z_]+"#;
 
 fn regex(input: &str) -> Regex {
     Regex::new(input).unwrap()
@@ -92,23 +93,31 @@ fn regex(input: &str) -> Regex {
 // it's regular expression used for parsing
 fn get_token_definitions() -> Vec<TokenDefinition> {
     vec![
-        TokenDefinition { 
-            token: Token::Number{literal: String::from("")}, 
+        TokenDefinition {
+            token: Token::Number {
+                literal: String::from(""),
+            },
             regex: regex(NUMBER_REGEX),
         },
-        TokenDefinition { 
+        TokenDefinition {
+            token: Token::Word {
+                literal: String::from(""),
+            },
+            regex: regex(WORD_REGEX),
+        },
+        TokenDefinition {
             token: Token::Command(Command::Forward),
             regex: regex(r"^(fd|forward)"),
         },
-        TokenDefinition { 
+        TokenDefinition {
             token: Token::Command(Command::Backward),
             regex: regex(r"^(bk|backward)"),
         },
-        TokenDefinition { 
+        TokenDefinition {
             token: Token::Command(Command::Left),
             regex: regex(r"^(lt|left)"),
         },
-        TokenDefinition { 
+        TokenDefinition {
             token: Token::Command(Command::Right),
             regex: regex(r"^(rt|right)"),
         },
@@ -175,6 +184,10 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
             regex: regex(r"^repeat"),
         },
         TokenDefinition {
+            token: Token::Make,
+            regex: regex(r"^make"),
+        },
+        TokenDefinition {
             token: Token::LBracket,
             regex: regex(r"^\["),
         },
@@ -225,15 +238,17 @@ impl<'a> Iterator for Lexer<'a> {
         for def in self.token_definitions.iter() {
             // if we find a match for the current token
             if let Some(m) = def.regex.find(&self.source[self.index..]) {
-
-                // special case for number because it has a value field
-                let token = if let Token::Number{literal: _} = def.token {
-                    Token::Number{
+                let token = match def.token {
+                    Token::Number { literal: _ } => Token::Number {
+                        literal: String::from(&self.source[self.index..self.index + m.end()]),
+                    },
+                    Token::Word { literal: _ } => Token::Word {
                         literal: String::from(
-                                 &self.source[self.index..self.index+m.end()])
-                    }
-                } else {
-                    def.token.clone()
+                            // we do index+1 to ignore the leading " character
+                            &self.source[self.index + 1..self.index + m.end()],
+                        ),
+                    },
+                    _ => def.token.clone(),
                 };
 
                 // increasing internal index counter by the number of characters
@@ -255,12 +270,27 @@ mod tests {
     fn number_regex_test() {
         let number_regex = Regex::new(NUMBER_REGEX).unwrap();
         let test_strings = vec!["1", "123456789", "-567", "-2943090"];
-        let test_positions = vec![1, 9, 4, 8];
+        //let test_positions = vec![1, 9, 4, 8];
 
-        for i in 0..test_strings.len() {
-            if let Some(m) = number_regex.find(test_strings[i]) {
+        for input in test_strings.iter() {
+            if let Some(m) = number_regex.find(input) {
                 assert_eq!(m.start(), 0);
-                assert_eq!(m.end(), test_positions[i]);
+                assert_eq!(m.end(), input.len());
+            } else {
+                panic!("Match not found");
+            }
+        }
+    }
+
+    #[test]
+    fn word_regex_test() {
+        let word_regex = Regex::new(WORD_REGEX).unwrap();
+        let test_strings = vec!["\"size"];
+
+        for input in test_strings.iter() {
+            if let Some(m) = word_regex.find(input) {
+                assert_eq!(m.start(), 0);
+                assert_eq!(m.end(), input.len());
             } else {
                 panic!("Match not found");
             }
@@ -279,9 +309,34 @@ mod tests {
         lex_test(
             "0 100 -79 ",
             vec![
-                Number{literal: String::from("0")}, Number{literal: String::from("100")}, 
-                Number{literal: String::from("-79")}, 
-            ]
+                Number {
+                    literal: String::from("0"),
+                },
+                Number {
+                    literal: String::from("100"),
+                },
+                Number {
+                    literal: String::from("-79"),
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn lex_word_test() {
+        lex_test(
+            "\"size \"COUNT \"under_SCORE",
+            vec![
+                Token::Word {
+                    literal: String::from("size"),
+                },
+                Token::Word {
+                    literal: String::from("COUNT"),
+                },
+                Token::Word {
+                    literal: String::from("under_SCORE"),
+                },
+            ],
         );
     }
 
@@ -301,12 +356,37 @@ mod tests {
             setsc setscreencolor fill
             ",
             commands!(
-                PenUp, PenUp, PenDown, PenDown, HideTurtle, HideTurtle,
-                ShowTurtle, ShowTurtle, ClearScreen, ClearScreen, Home,
-                Exit, Forward, Forward, Backward, Backward, Left, Left,
-                Right, Right, SetXY, Clean, SetPenSize, SetPenSize,
-                SetPenColor, SetPenColor, SetFillColor, SetFillColor,
-                SetScreenColor, SetScreenColor, Fill
+                PenUp,
+                PenUp,
+                PenDown,
+                PenDown,
+                HideTurtle,
+                HideTurtle,
+                ShowTurtle,
+                ShowTurtle,
+                ClearScreen,
+                ClearScreen,
+                Home,
+                Exit,
+                Forward,
+                Forward,
+                Backward,
+                Backward,
+                Left,
+                Left,
+                Right,
+                Right,
+                SetXY,
+                Clean,
+                SetPenSize,
+                SetPenSize,
+                SetPenColor,
+                SetPenColor,
+                SetFillColor,
+                SetFillColor,
+                SetScreenColor,
+                SetScreenColor,
+                Fill
             ),
         );
     }
@@ -316,10 +396,17 @@ mod tests {
         lex_test(
             "repeat 7 [ forward 100 ]",
             vec![
-                Token::Repeat, Token::Number{literal: String::from("7")}, Token::LBracket,
-                Token::Command(Command::Forward), Token::Number{literal: String::from("100")},
-                Token::RBracket
-            ]
+                Token::Repeat,
+                Token::Number {
+                    literal: String::from("7"),
+                },
+                Token::LBracket,
+                Token::Command(Command::Forward),
+                Token::Number {
+                    literal: String::from("100"),
+                },
+                Token::RBracket,
+            ],
         );
     }
 
@@ -330,10 +417,32 @@ mod tests {
             "setscreencolor 100 100 100",
             vec![
                 Token::Command(Command::SetScreenColor),
-                Token::Number{literal: String::from("100")},
-                Token::Number{literal: String::from("100")},
-                Token::Number{literal: String::from("100")},
-            ]
+                Token::Number {
+                    literal: String::from("100"),
+                },
+                Token::Number {
+                    literal: String::from("100"),
+                },
+                Token::Number {
+                    literal: String::from("100"),
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn lex_variable_declaration_test() {
+        lex_test(
+            "make \"size 130",
+            vec![
+                Token::Make,
+                Token::Word {
+                    literal: String::from("size"),
+                },
+                Token::Number {
+                    literal: String::from("130"),
+                },
+            ],
         );
     }
 }
