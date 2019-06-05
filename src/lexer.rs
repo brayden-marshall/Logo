@@ -7,6 +7,7 @@ pub enum Token {
     Number { literal: String },
     Command(Command),
     Word { literal: String },
+    Variable { name: String },
 
     Repeat,
     Make,
@@ -83,6 +84,7 @@ struct TokenDefinition {
 
 const NUMBER_REGEX: &str = r"^-?[0-9]+";
 const WORD_REGEX: &str = r#"^"[a-zA-Z_]+"#;
+const VARIABLE_REGEX: &str = r"^:[a-zA-Z_]+";
 
 fn regex(input: &str) -> Regex {
     Regex::new(input).unwrap()
@@ -104,6 +106,12 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
                 literal: String::from(""),
             },
             regex: regex(WORD_REGEX),
+        },
+        TokenDefinition {
+            token: Token::Variable {
+                name: String::from(""),
+            },
+            regex: regex(VARIABLE_REGEX),
         },
         TokenDefinition {
             token: Token::Command(Command::Forward),
@@ -244,8 +252,14 @@ impl<'a> Iterator for Lexer<'a> {
                     },
                     Token::Word { literal: _ } => Token::Word {
                         literal: String::from(
-                            // we do index+1 to ignore the leading " character
+                            // index+1 to ignore the leading " character
                             &self.source[self.index + 1..self.index + m.end()],
+                        ),
+                    },
+                    Token::Variable { name: _ } => Token::Variable {
+                        name: String::from(
+                            // index+1 to ignore the leading : character
+                            &self.source[self.index+1..self.index + m.end()],
                         ),
                     },
                     _ => def.token.clone(),
@@ -335,6 +349,24 @@ mod tests {
                 },
                 Token::Word {
                     literal: String::from("under_SCORE"),
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn lex_variable_test() {
+        lex_test(
+            ":angle :SIZE :mixed_LETTERS",
+            vec![
+                Token::Variable {
+                    name: String::from("angle"),
+                },
+                Token::Variable {
+                    name: String::from("SIZE"),
+                },
+                Token::Variable {
+                    name: String::from("mixed_LETTERS"),
                 },
             ],
         );

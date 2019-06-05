@@ -14,7 +14,7 @@ impl AST {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     ProgramStart,
     Number {
@@ -22,6 +22,9 @@ pub enum Expression {
     },
     Word {
         literal: String,
+    },
+    Variable {
+        name: String,
     },
     Command {
         command: Command,
@@ -55,11 +58,12 @@ impl AST {
             // the expression we will be adding to ast
             //let mut expr: Option<Expression>;
             let expr = match tok {
+                Token::Variable{name} => Ok(Expression::Variable{name: name.to_string()}),
                 Token::Command(command) => AST::parse_command(command.clone(), &mut token_iter),
 
                 Token::Repeat => AST::parse_repeat(&mut token_iter),
 
-                //Token::Make => AST::parse_variable_declaration(&mut token_iter),
+                Token::Make => AST::parse_variable_declaration(&mut token_iter),
                 _ => Err(ParseError::UnexpectedToken),
             };
 
@@ -72,8 +76,10 @@ impl AST {
     }
 
     // takes a command
-    fn parse_command(command: Command, tokens: &mut slice::Iter<'_, Token>) -> Result<Expression, ParseError>
-    {
+    fn parse_command(
+        command: Command,
+        tokens: &mut slice::Iter<'_, Token>,
+    ) -> Result<Expression, ParseError> {
         let mut args: Vec<Expression> = Vec::new();
         // consuming the next tokens as arguments according to how many
         // the arguments the command takes as input
@@ -82,6 +88,9 @@ impl AST {
                 Some(e) => match e {
                     Token::Number { literal } => args.push(Expression::Number {
                         val: literal.parse().unwrap(),
+                    }),
+                    Token::Variable { name } => args.push(Expression::Variable {
+                        name: name.to_string(),
                     }),
                     //_ => return Err("Expected number argument".to_string()),
                     _ => return Err(ParseError::TypeError),
@@ -94,7 +103,7 @@ impl AST {
         Ok(Expression::Command { command, args })
     }
 
-    fn parse_repeat(mut tokens: &mut slice::Iter<'_, Token>) -> Result<Expression, ParseError> {
+    fn parse_repeat(tokens: &mut slice::Iter<'_, Token>) -> Result<Expression, ParseError> {
         let mut body: Vec<Expression> = Vec::new();
 
         // check that the next number is a number, and parse it
@@ -131,8 +140,8 @@ impl AST {
                 Some(tok) => match tok {
                     Token::RBracket => break,
 
-                    Token::Command(command) => AST::parse_command(command.clone(), &mut tokens),
-                    Token::Repeat => AST::parse_repeat(&mut tokens),
+                    Token::Command(command) => AST::parse_command(command.clone(), tokens),
+                    Token::Repeat => AST::parse_repeat(tokens),
                     _ => Err(ParseError::UnexpectedToken),
                     //_ => Err("Error: found unexpected token".to_string()),
                 },
@@ -148,34 +157,31 @@ impl AST {
         Ok(Expression::Repeat { count, body })
     }
 
-    fn parse_variable_declaration(tokens: &mut slice::Iter<'_, Token>) -> Result<Expression, ParseError> {
+    fn parse_variable_declaration(
+        tokens: &mut slice::Iter<'_, Token>,
+    ) -> Result<Expression, ParseError> {
         let name = match tokens.next() {
             Some(tok) => match tok {
-                Token::Word{literal} => literal.to_string(),
+                Token::Word { literal } => literal.to_string(),
                 _ => return Err(ParseError::UnexpectedToken),
-            }
+            },
             None => return Err(ParseError::EOF),
         };
 
         let val: Box<Expression> = match tokens.next() {
             Some(tok) => match tok {
-                Token::Word{literal} => Box::new(Expression::Word {
+                Token::Word { literal } => Box::new(Expression::Word {
                     literal: literal.to_string(),
                 }),
-                Token::Number{literal} => Box::new(Expression::Number {
+                Token::Number { literal } => Box::new(Expression::Number {
                     val: literal.parse().unwrap(),
                 }),
                 _ => return Err(ParseError::UnexpectedToken),
-            }
+            },
             None => return Err(ParseError::EOF),
         };
 
-        Ok(
-            Expression::VariableDeclaration{
-                name,
-                val,
-            }
-        )
+        Ok(Expression::VariableDeclaration { name, val })
     }
 }
 
@@ -255,6 +261,29 @@ mod tests {
                     },
                 ],
             },
+        );
+    }
+
+    #[test]
+    fn parse_variable_argument_command_test() {
+        parse_test(
+            vec![
+                Token::Command(Command::SetXY),
+                Token::Variable { name: String::from("x") },
+                Token::Variable { name: String::from("Y") },
+            ],
+            AST {
+                expressions: vec![
+                    Expression::ProgramStart,
+                    Expression::Command {
+                        command: Command::SetXY,
+                        args: vec![
+                            Expression::Variable { name: String::from("x") },
+                            Expression::Variable { name: String::from("Y") },
+                        ],
+                    }
+                ]
+            }
         );
     }
 
