@@ -9,7 +9,7 @@ mod lexer;
 mod parser;
 
 use lexer::{Command, Lexer, Token};
-use parser::{Expression, AST};
+use parser::{Statement, Expression, AST};
 
 fn main() {
     let matches = App::new("Logo")
@@ -79,46 +79,33 @@ fn run_program(t: &mut Turtle, input: &str, debug: bool, vars: &mut HashMap<Stri
 }
 
 fn run_ast(t: &mut Turtle, ast: &AST, vars: &mut HashMap<String, Expression>) {
-    for expr in ast.expressions.iter() {
-        if let Expression::ProgramStart = expr {
+    for stmt in ast.statements.iter() {
+        if let Statement::ProgramStart = stmt {
             continue;
         }
 
-        if let Err(e) = run_expression(t, expr, vars) {
+        if let Err(e) = run_statement(t, stmt, vars) {
             eprintln!("{:?}", e);
         }
     }
 }
 
-fn run_expression(t: &mut Turtle, expr: &Expression, 
+fn run_statement(t: &mut Turtle, stmt: &Statement, 
                       vars: &mut HashMap<String, Expression>) 
 -> Result<(), String> {
     // currently does not handle varying argument types,
     // only accept LOGO number values as command arguments
-    match expr {
-        Expression::ProgramStart => (),
-        Expression::Number { val: _ } => (),
-        Expression::Variable{name: _} => (),
-        Expression::Word { literal: _ } => (),
-        Expression::VariableDeclaration { name, val } => {
+    match stmt {
+        Statement::ProgramStart => (),
+        //Expression::Number { val: _ } => (),
+        //Expression::Variable{name: _} => (),
+        //Expression::Word { literal: _ } => (),
+        Statement::VariableDeclaration { name, val } => {
             vars.insert(name.to_string(), *val.clone());
             ()
         }
 
-        Expression::Command { command, args: _args } => {
-            /*
-            let args: Vec<f64> = args
-                .iter()
-                .map(|arg| {
-                    if let Expression::Number { val } = arg {
-                        *val as f64
-                    } else {
-                        panic!("Expected number argument");
-                    }
-                })
-                .collect();
-            */
-
+        Statement::Command { command, args: _args } => {
             let mut args: Vec<f64> = Vec::new();
             for arg in _args.iter() {
                 match arg {
@@ -168,10 +155,10 @@ fn run_expression(t: &mut Turtle, expr: &Expression,
             }
         }
 
-        Expression::Repeat { count, body } => {
+        Statement::Repeat { count, body } => {
             for _ in 0..*count {
-                for body_expr in body.iter() {
-                    if let Err(e) = run_expression(t, body_expr, vars) {
+                for body_statement in body.iter() {
+                    if let Err(e) = run_statement(t, body_statement, vars) {
                         eprintln!("{:?}", e);
                     }
                 }

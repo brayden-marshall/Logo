@@ -3,20 +3,38 @@ use std::slice;
 
 #[derive(Debug, PartialEq)]
 pub struct AST {
-    pub expressions: Vec<Expression>,
+    pub statements: Vec<Statement>,
 }
 
 impl AST {
     pub fn new() -> Self {
         AST {
-            expressions: vec![Expression::ProgramStart],
+            statements: vec![Statement::ProgramStart],
         }
     }
 }
 
+/// Statements are any logo 'sentence' that does not evaluate to a value
+#[derive(Debug, PartialEq, Clone)]
+pub enum Statement {
+    ProgramStart,
+    Command {
+        command: Command,
+        args: Vec<Expression>,
+    },
+    Repeat {
+        count: usize,
+        body: Vec<Statement>,
+    },
+    VariableDeclaration {
+        name: String,
+        val: Box<Expression>,
+    },
+}
+
+/// Expressions are any logo 'sentence' that evaluates to a value
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
-    ProgramStart,
     Number {
         val: isize,
     },
@@ -25,18 +43,6 @@ pub enum Expression {
     },
     Variable {
         name: String,
-    },
-    Command {
-        command: Command,
-        args: Vec<Expression>,
-    },
-    Repeat {
-        count: usize,
-        body: Vec<Expression>,
-    },
-    VariableDeclaration {
-        name: String,
-        val: Box<Expression>,
     },
 }
 
@@ -55,11 +61,9 @@ impl AST {
 
         let mut token_iter = tokens.iter();
         while let Some(tok) = token_iter.next() {
-            // the expression we will be adding to ast
-            //let mut expr: Option<Expression>;
             let expr = match tok {
-                Token::Variable{name} => Ok(Expression::Variable{name: name.to_string()}),
-                Token::Command(command) => AST::parse_command(command.clone(), &mut token_iter),
+                Token::Command(command) => 
+                    AST::parse_command(command.clone(), &mut token_iter),
 
                 Token::Repeat => AST::parse_repeat(&mut token_iter),
 
@@ -68,7 +72,7 @@ impl AST {
             };
 
             match expr {
-                Ok(e) => ast.expressions.push(e),
+                Ok(e) => ast.statements.push(e),
                 Err(err) => return Err(err),
             }
         }
@@ -79,7 +83,7 @@ impl AST {
     fn parse_command(
         command: Command,
         tokens: &mut slice::Iter<'_, Token>,
-    ) -> Result<Expression, ParseError> {
+    ) -> Result<Statement, ParseError> {
         let mut args: Vec<Expression> = Vec::new();
         // consuming the next tokens as arguments according to how many
         // the arguments the command takes as input
@@ -100,27 +104,32 @@ impl AST {
             }
         }
 
-        Ok(Expression::Command { command, args })
+        Ok(Statement::Command { command, args })
     }
 
-    fn parse_repeat(tokens: &mut slice::Iter<'_, Token>) -> Result<Expression, ParseError> {
-        let mut body: Vec<Expression> = Vec::new();
+    fn parse_repeat(
+        tokens: &mut slice::Iter<'_, Token>,
+    ) -> Result<Statement, ParseError> {
+        let mut body: Vec<Statement> = Vec::new();
 
         // check that the next number is a number, and parse it
-        let count: Result<usize, _> = match tokens.next() {
+        let count: Result<usize, ParseError> = match tokens.next() {
             Some(tok) => match tok {
-                Token::Number { literal } => literal.parse(),
-                _ => return Err(ParseError::TypeError),
+                Token::Number { literal } => match literal.parse() {
+                    Ok(n) => Ok(n),
+                    Err(_) => Err(ParseError::ParseInteger),
+                },
+                _ => Err(ParseError::TypeError),
                 //_ => return Err("Expected number argument after keyword 'repeat'".to_string()),
             },
             //None => return Err("Expected number argument after keyword 'repeat'".to_string()),
-            None => return Err(ParseError::TypeError),
+            None => Err(ParseError::TypeError),
         };
 
         // handle the possible integer parsing error
         let count: usize = match count {
             Ok(n) => n,
-            Err(_) => return Err(ParseError::ParseInteger),
+            Err(e) => return Err(e),
         };
 
         // check for a left bracket to start the body of repeat command
@@ -136,7 +145,7 @@ impl AST {
 
         // parse expressions of repeat body until we find a closing bracket
         loop {
-            let expr = match tokens.next() {
+            let statement = match tokens.next() {
                 Some(tok) => match tok {
                     Token::RBracket => break,
 
@@ -148,18 +157,18 @@ impl AST {
                 None => Err(ParseError::EOF),
             };
 
-            match expr {
-                Ok(e) => body.push(e),
+            match statement {
+                Ok(s) => body.push(s),
                 Err(e) => return Err(e),
             }
         }
 
-        Ok(Expression::Repeat { count, body })
+        Ok(Statement::Repeat { count, body })
     }
 
     fn parse_variable_declaration(
         tokens: &mut slice::Iter<'_, Token>,
-    ) -> Result<Expression, ParseError> {
+    ) -> Result<Statement, ParseError> {
         let name = match tokens.next() {
             Some(tok) => match tok {
                 Token::Word { literal } => literal.to_string(),
@@ -181,7 +190,7 @@ impl AST {
             None => return Err(ParseError::EOF),
         };
 
-        Ok(Expression::VariableDeclaration { name, val })
+        Ok(Statement::VariableDeclaration { name, val })
     }
 }
 
@@ -204,9 +213,9 @@ mod tests {
                 },
             ],
             AST {
-                expressions: vec![
-                    Expression::ProgramStart,
-                    Expression::Command {
+                statements: vec![
+                    Statement::ProgramStart,
+                    Statement::Command {
                         command: Command::Forward,
                         args: vec![Expression::Number { val: 70 }],
                     },
@@ -250,9 +259,9 @@ mod tests {
                 },
             ],
             AST {
-                expressions: vec![
-                    Expression::ProgramStart,
-                    Expression::Command {
+                statements: vec![
+                    Statement::ProgramStart,
+                    Statement::Command {
                         command: Command::SetXY,
                         args: vec![
                             Expression::Number { val: -60 },
@@ -273,9 +282,9 @@ mod tests {
                 Token::Variable { name: String::from("Y") },
             ],
             AST {
-                expressions: vec![
-                    Expression::ProgramStart,
-                    Expression::Command {
+                statements: vec![
+                    Statement::ProgramStart,
+                    Statement::Command {
                         command: Command::SetXY,
                         args: vec![
                             Expression::Variable { name: String::from("x") },
@@ -304,11 +313,11 @@ mod tests {
                 Token::RBracket,
             ],
             AST {
-                expressions: vec![
-                    Expression::ProgramStart,
-                    Expression::Repeat {
+                statements: vec![
+                    Statement::ProgramStart,
+                    Statement::Repeat {
                         count: 10,
-                        body: vec![Expression::Command {
+                        body: vec![Statement::Command {
                             command: Command::Forward,
                             args: vec![Expression::Number { val: 50 }],
                         }],
@@ -345,18 +354,18 @@ mod tests {
                 Token::RBracket,
             ],
             AST {
-                expressions: vec![
-                    Expression::ProgramStart,
-                    Expression::Repeat {
+                statements: vec![
+                    Statement::ProgramStart,
+                    Statement::Repeat {
                         count: 10,
                         body: vec![
-                            Expression::Command {
+                            Statement::Command {
                                 command: Command::Forward,
                                 args: vec![Expression::Number { val: 50 }],
                             },
-                            Expression::Repeat {
+                            Statement::Repeat {
                                 count: 45,
-                                body: vec![Expression::Command {
+                                body: vec![Statement::Command {
                                     command: Command::Right,
                                     args: vec![Expression::Number { val: 1 }],
                                 }],
