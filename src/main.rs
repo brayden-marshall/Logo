@@ -97,11 +97,8 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
     // only accept LOGO number values as command arguments
     match stmt {
         Statement::ProgramStart => (),
-        //Expression::Number { val: _ } => (),
-        //Expression::Variable{name: _} => (),
-        //Expression::Word { literal: _ } => (),
         Statement::VariableDeclaration { name, val } => {
-            vars.insert(name.to_string(), *val.clone());
+            //vars.insert(name.to_string(), *val.clone());
             ()
         }
 

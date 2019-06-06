@@ -83,8 +83,8 @@ struct TokenDefinition {
 }
 
 const NUMBER_REGEX: &str = r"^-?[0-9]+";
-const WORD_REGEX: &str = r#"^"[a-zA-Z_]+"#;
-const VARIABLE_REGEX: &str = r"^:[a-zA-Z_]+";
+const WORD_REGEX: &str = r#"^"[a-zA-Z_][0-9a-zA-Z_]*"#;
+const VARIABLE_REGEX: &str = r"^:[a-zA-Z_][0-9a-zA-Z_]*";
 
 fn regex(input: &str) -> Regex {
     Regex::new(input).unwrap()
@@ -339,7 +339,7 @@ mod tests {
     #[test]
     fn lex_word_test() {
         lex_test(
-            "\"size \"COUNT \"under_SCORE",
+            "\"size \"COUNT \"under_SCORE \"H5H6H7",
             vec![
                 Token::Word {
                     literal: String::from("size"),
@@ -350,6 +350,9 @@ mod tests {
                 Token::Word {
                     literal: String::from("under_SCORE"),
                 },
+                Token::Word {
+                    literal: String::from("H5H6H7"),
+                },
             ],
         );
     }
@@ -357,7 +360,7 @@ mod tests {
     #[test]
     fn lex_variable_test() {
         lex_test(
-            ":angle :SIZE :mixed_LETTERS",
+            ":angle :SIZE :mixed_LETTERS :variable_123",
             vec![
                 Token::Variable {
                     name: String::from("angle"),
@@ -367,6 +370,9 @@ mod tests {
                 },
                 Token::Variable {
                     name: String::from("mixed_LETTERS"),
+                },
+                Token::Variable {
+                    name: String::from("variable_123"),
                 },
             ],
         );

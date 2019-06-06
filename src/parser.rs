@@ -185,6 +185,9 @@ impl AST {
                 Token::Number { literal } => Box::new(Expression::Number {
                     val: literal.parse().unwrap(),
                 }),
+                Token::Variable { name } => Box::new(Expression::Variable {
+                    name: name.to_string(),
+                }),
                 _ => return Err(ParseError::UnexpectedToken),
             },
             None => return Err(ParseError::EOF),

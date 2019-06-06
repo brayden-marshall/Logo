@@ -8,21 +8,9 @@
 
 Because I don't know what I'm doing, I'm just gonna brainstorm some things that I think I should be doing.
 
+- Remove Statement::ProgramStart, it's useless and doesn't make any difference to the program
+
 ##### change parser.rs implementation in the following way
-- split `Expression` type into `Expression` and `Statement` types
-- Expressions should be anything that evaluate to something:
-```
-:var
-10
-10 + 70
-...
-```
-- Statements should be every other 'sentence':
-```
-forward 100
-make "angle 45
-repeat 3 [ forward 100 ]
-```
 
 - remove all type-checking from the initial build of the AST, do a second pass for type-checking... this ,,should'' allow for more easily adding a symbol table later on, if needed
 
@@ -50,8 +38,8 @@ repeat 3 [ forward 100 ]
 
 - Variables (incomplete, see below for what needs to be added): 
 ```
-make "angle 45
-fd 10 rt :angle
+make "angle_1 45
+fd 10 rt :angle_1
 ```
 
 - Exit (added for convenience): `exit`
@@ -63,12 +51,6 @@ fd 10 rt :angle
 - Random (1 argument is max number): `forward random 100`
 
 #### Variables
-- allow variable names to contain numbers, after the first character:
-```
-:var1
-:var_2
-:2variable // ERROR: should not be allowed
-```
 
 - allow assigning one variable the value of another (copy assignment):
 ```
