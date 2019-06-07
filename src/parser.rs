@@ -9,7 +9,7 @@ pub struct AST {
 impl AST {
     pub fn new() -> Self {
         AST {
-            statements: vec![Statement::ProgramStart],
+            statements: vec![],
         }
     }
 }
@@ -17,7 +17,6 @@ impl AST {
 /// Statements are any logo 'sentence' that does not evaluate to a value
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    ProgramStart,
     Command {
         command: Command,
         args: Vec<Expression>,
@@ -96,10 +95,8 @@ impl AST {
                     Token::Variable { name } => args.push(Expression::Variable {
                         name: name.to_string(),
                     }),
-                    //_ => return Err("Expected number argument".to_string()),
                     _ => return Err(ParseError::TypeError),
                 },
-                //None => return Err("Not enough arguments".to_string()),
                 None => return Err(ParseError::EOF),
             }
         }
@@ -120,9 +117,7 @@ impl AST {
                     Err(_) => Err(ParseError::ParseInteger),
                 },
                 _ => Err(ParseError::TypeError),
-                //_ => return Err("Expected number argument after keyword 'repeat'".to_string()),
             },
-            //None => return Err("Expected number argument after keyword 'repeat'".to_string()),
             None => Err(ParseError::TypeError),
         };
 
@@ -136,10 +131,8 @@ impl AST {
         match tokens.next() {
             Some(tok) => match tok {
                 Token::LBracket => (),
-                //_ => return Err("Expected opening bracket '[' to start repeat body".to_string()),
                 _ => return Err(ParseError::UnexpectedToken),
             },
-            //None => return Err("Expected opening bracket '[' to start repeat body".to_string()),
             None => return Err(ParseError::UnexpectedToken),
         }
 
@@ -152,7 +145,6 @@ impl AST {
                     Token::Command(command) => AST::parse_command(command.clone(), tokens),
                     Token::Repeat => AST::parse_repeat(tokens),
                     _ => Err(ParseError::UnexpectedToken),
-                    //_ => Err("Error: found unexpected token".to_string()),
                 },
                 None => Err(ParseError::EOF),
             };
@@ -217,7 +209,6 @@ mod tests {
             ],
             AST {
                 statements: vec![
-                    Statement::ProgramStart,
                     Statement::Command {
                         command: Command::Forward,
                         args: vec![Expression::Number { val: 70 }],
@@ -263,7 +254,6 @@ mod tests {
             ],
             AST {
                 statements: vec![
-                    Statement::ProgramStart,
                     Statement::Command {
                         command: Command::SetXY,
                         args: vec![
@@ -286,7 +276,6 @@ mod tests {
             ],
             AST {
                 statements: vec![
-                    Statement::ProgramStart,
                     Statement::Command {
                         command: Command::SetXY,
                         args: vec![
@@ -317,7 +306,6 @@ mod tests {
             ],
             AST {
                 statements: vec![
-                    Statement::ProgramStart,
                     Statement::Repeat {
                         count: 10,
                         body: vec![Statement::Command {
@@ -358,7 +346,6 @@ mod tests {
             ],
             AST {
                 statements: vec![
-                    Statement::ProgramStart,
                     Statement::Repeat {
                         count: 10,
                         body: vec![

@@ -8,10 +8,6 @@
 
 Because I don't know what I'm doing, I'm just gonna brainstorm some things that I think I should be doing.
 
-- Remove Statement::ProgramStart, it's useless and doesn't make any difference to the program
-
-##### change parser.rs implementation in the following way
-
 - remove all type-checking from the initial build of the AST, do a second pass for type-checking... this ,,should'' allow for more easily adding a symbol table later on, if needed
 
 ## Supported Commands
@@ -36,7 +32,7 @@ Because I don't know what I'm doing, I'm just gonna brainstorm some things that 
 - SetScreenColor: `setscreencolor 255 0 0 setsc 123 123 123`
 - SetXY: `setxy 60 60`
 
-- Variables (incomplete, see below for what needs to be added): 
+- Variables:
 ```
 make "angle_1 45
 fd 10 rt :angle_1
@@ -49,14 +45,6 @@ fd 10 rt :angle_1
 - Fill (fill enclosed shape, fill is not currently implemented in the `turtle` library, so this may be tricky): `fill`
 - Label: `label <string literal>`
 - Random (1 argument is max number): `forward random 100`
-
-#### Variables
-
-- allow assigning one variable the value of another (copy assignment):
-```
-make "angle 45
-make "other_angle :angle
-```
 
 ### Large-scale
 - Arithmetic operations on numbers: `fd 100 + 70 bk sqrt 100`
@@ -73,4 +61,4 @@ end
 draw_circle
 ```
 
-- Control Flow (if, if-else)
+- Control Flow (if, if-else) (need to also implement boolean type)

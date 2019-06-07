@@ -80,10 +80,6 @@ fn run_program(t: &mut Turtle, input: &str, debug: bool, vars: &mut HashMap<Stri
 
 fn run_ast(t: &mut Turtle, ast: &AST, vars: &mut HashMap<String, Expression>) {
     for stmt in ast.statements.iter() {
-        if let Statement::ProgramStart = stmt {
-            continue;
-        }
-
         if let Err(e) = run_statement(t, stmt, vars) {
             eprintln!("{:?}", e);
         }
@@ -96,9 +92,22 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
     // currently does not handle varying argument types,
     // only accept LOGO number values as command arguments
     match stmt {
-        Statement::ProgramStart => (),
         Statement::VariableDeclaration { name, val } => {
-            //vars.insert(name.to_string(), *val.clone());
+            let _val = (**val).clone();
+            vars.insert(name.to_string(), match _val {
+                Expression::Number {val: _} => _val,
+                Expression::Variable { name } => match vars.get(&name) {
+                    Some(e) => match e {
+                        Expression::Number { val } => Expression::Number { 
+                            val: val.clone()
+                        },
+                        _ => return Err(String::from("Expected number argument")),
+                    },
+                    None => return Err(format!("Variable {} does not exist", name)),
+                },
+                _ => return Err(String::from("Expected number argument")),
+            });
+            println!("Vars: {:?}", vars);
             ()
         }
 
