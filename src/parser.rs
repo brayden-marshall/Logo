@@ -37,9 +37,9 @@ pub enum Expression {
     Number {
         val: isize,
     },
-    Word {
-        literal: String,
-    },
+    //Word {
+    //    literal: String,
+    //},
     Variable {
         name: String,
     },
@@ -171,9 +171,6 @@ impl AST {
 
         let val: Box<Expression> = match tokens.next() {
             Some(tok) => match tok {
-                Token::Word { literal } => Box::new(Expression::Word {
-                    literal: literal.to_string(),
-                }),
                 Token::Number { literal } => Box::new(Expression::Number {
                     val: literal.parse().unwrap(),
                 }),

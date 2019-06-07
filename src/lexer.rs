@@ -4,8 +4,10 @@ use std::iter::FromIterator;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    Number { literal: String },
     Command(Command),
+    Operator(Operator),
+
+    Number { literal: String },
     Word { literal: String },
     Variable { name: String },
 
@@ -13,6 +15,14 @@ pub enum Token {
     Make,
     LBracket,
     RBracket,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Operator {
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -202,6 +212,22 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         TokenDefinition {
             token: Token::RBracket,
             regex: regex(r"^\]"),
+        },
+        TokenDefinition {
+            token: Token::Operator(Operator::Addition),
+            regex: regex(r"^\+"),
+        },
+        TokenDefinition {
+            token: Token::Operator(Operator::Subtraction),
+            regex: regex(r"^-"),
+        },
+        TokenDefinition {
+            token: Token::Operator(Operator::Multiplication),
+            regex: regex(r"^\*"),
+        },
+        TokenDefinition {
+            token: Token::Operator(Operator::Division),
+            regex: regex(r"^/"),
         },
     ]
 }
@@ -426,6 +452,19 @@ mod tests {
                 SetScreenColor,
                 Fill
             ),
+        );
+    }
+    
+    #[test]
+    fn lex_operator_test() {
+        lex_test(
+            "+ - * /",
+            vec![
+                Token::Operator(Operator::Addition),
+                Token::Operator(Operator::Subtraction),
+                Token::Operator(Operator::Multiplication),
+                Token::Operator(Operator::Division),
+            ],
         );
     }
 

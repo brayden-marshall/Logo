@@ -105,7 +105,6 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
                     },
                     None => return Err(format!("Variable {} does not exist", name)),
                 },
-                _ => return Err(String::from("Expected number argument")),
             });
             println!("Vars: {:?}", vars);
             ()
@@ -123,7 +122,6 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
                         },
                         None => return Err(format!("Variable {} does not exist", name)),
                     },
-                    _ => return Err(String::from("Expected number argument")),
                 }
             }
 
