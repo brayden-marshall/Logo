@@ -105,6 +105,7 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
                     },
                     None => return Err(format!("Variable {} does not exist", name)),
                 },
+                _ => return Err(String::from("Arithmetic expressions not yet supported")),
             });
             println!("Vars: {:?}", vars);
             ()
@@ -122,6 +123,7 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
                         },
                         None => return Err(format!("Variable {} does not exist", name)),
                     },
+                    _ => return Err(String::from("Arithmetic expressions not yet supported")),
                 }
             }
 

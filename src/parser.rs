@@ -1,5 +1,5 @@
-use crate::lexer::{Command, Token};
-use std::slice;
+use crate::lexer::{Command, Operator, Token};
+use std::iter::Peekable;
 
 #[derive(Debug, PartialEq)]
 pub struct AST {
@@ -34,6 +34,12 @@ pub enum Statement {
 /// Expressions are any logo 'sentence' that evaluates to a value
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
+    ArithmeticExpression {
+        rpn: Vec<Expression>,
+    },
+    Operator {
+        op: Operator,
+    },
     Number {
         val: isize,
     },
@@ -79,38 +85,32 @@ impl AST {
     }
 
     // takes a command
-    fn parse_command(
+    fn parse_command<'a, T>(
         command: Command,
-        tokens: &mut slice::Iter<'_, Token>,
-    ) -> Result<Statement, ParseError> {
+        tokens: &mut T,
+    ) -> Result<Statement, ParseError>
+    where T: Iterator<Item = &'a Token>{
         let mut args: Vec<Expression> = Vec::new();
         // consuming the next tokens as arguments according to how many
         // the arguments the command takes as input
         for _ in 0..command.arity() {
-            match tokens.next() {
-                Some(e) => match e {
-                    Token::Number { literal } => args.push(Expression::Number {
-                        val: literal.parse().unwrap(),
-                    }),
-                    Token::Variable { name } => args.push(Expression::Variable {
-                        name: name.to_string(),
-                    }),
-                    _ => return Err(ParseError::TypeError),
-                },
-                None => return Err(ParseError::EOF),
+            match AST::parse_expression(&mut tokens.peekable()) {
+                Ok(e) => args.push(e),
+                Err(e) => return Err(e),
             }
         }
 
         Ok(Statement::Command { command, args })
     }
 
-    fn parse_repeat(
-        tokens: &mut slice::Iter<'_, Token>,
-    ) -> Result<Statement, ParseError> {
+    fn parse_repeat<'a, T>(
+        tokens: &mut T,
+    ) -> Result<Statement, ParseError> 
+    where T: Iterator<Item = &'a Token> {
         let mut body: Vec<Statement> = Vec::new();
 
         // check that the next number is a number, and parse it
-        let count: Result<usize, ParseError> = match tokens.next() {
+        let count: usize = match tokens.next() {
             Some(tok) => match tok {
                 Token::Number { literal } => match literal.parse() {
                     Ok(n) => Ok(n),
@@ -119,13 +119,15 @@ impl AST {
                 _ => Err(ParseError::TypeError),
             },
             None => Err(ParseError::TypeError),
-        };
+        }?;
 
+        /*
         // handle the possible integer parsing error
         let count: usize = match count {
             Ok(n) => n,
             Err(e) => return Err(e),
         };
+        */
 
         // check for a left bracket to start the body of repeat command
         match tokens.next() {
@@ -158,9 +160,10 @@ impl AST {
         Ok(Statement::Repeat { count, body })
     }
 
-    fn parse_variable_declaration(
-        tokens: &mut slice::Iter<'_, Token>,
-    ) -> Result<Statement, ParseError> {
+    fn parse_variable_declaration<'a, T>(
+        tokens: &mut T,
+    ) -> Result<Statement, ParseError>
+    where T: Iterator<Item = &'a Token> {
         let name = match tokens.next() {
             Some(tok) => match tok {
                 Token::Word { literal } => literal.to_string(),
@@ -169,20 +172,86 @@ impl AST {
             None => return Err(ParseError::EOF),
         };
 
-        let val: Box<Expression> = match tokens.next() {
-            Some(tok) => match tok {
-                Token::Number { literal } => Box::new(Expression::Number {
-                    val: literal.parse().unwrap(),
-                }),
-                Token::Variable { name } => Box::new(Expression::Variable {
-                    name: name.to_string(),
-                }),
-                _ => return Err(ParseError::UnexpectedToken),
-            },
-            None => return Err(ParseError::EOF),
+        let val: Box<Expression> = match AST::parse_expression(&mut tokens.peekable()) {
+            Ok(e) => Box::new(e),
+            Err(e) => return Err(e),
         };
 
         Ok(Statement::VariableDeclaration { name, val })
+    }
+    
+    fn parse_arithmetic_expression<'a, T>(
+        tokens: &mut Peekable<T>,
+    ) -> Result<Expression, ParseError>
+    where T: Iterator<Item = &'a Token>{
+        let mut operator_stack: Vec<Operator> = Vec::new();
+        let mut output: Vec<Expression> = Vec::new();
+        loop {
+            // check that the next token is either a number or an operator
+            match tokens.peek() {
+                Some(tok) => match tok {
+                    Token::Number { literal: _ } => (),
+                    Token::Operator(_) => (),
+                    _ => break,
+                },
+                None => break,
+            }
+
+            if let Some(tok) = tokens.next() {
+                match tok {
+                    Token::Number { literal } => output.push(AST::parse_number(literal.to_string())?),
+                    Token::Operator(op) => {
+                        while !operator_stack.is_empty() &&
+                              op.precedence() 
+                              <= operator_stack[operator_stack.len()-1].precedence() {
+                            if let Some(popped) = operator_stack.pop() {
+                                output.push(Expression::Operator{
+                                    op: popped
+                                });
+                            }
+                        }
+                        operator_stack.push(op.clone());
+                    },
+                    _ => (),
+                }
+            }
+        }
+
+        while !operator_stack.is_empty() {
+            if let Some(popped) = operator_stack.pop() {
+                output.push(Expression::Operator{
+                    op: popped
+                });
+            }
+        }
+
+        Ok(Expression::ArithmeticExpression { rpn: output })
+    }
+
+    fn parse_number(literal: String) -> Result<Expression, ParseError> {
+        match literal.parse() {
+            Ok(n) => Ok(Expression::Number {
+                val: n,
+            }),
+            Err(_) => Err(ParseError::ParseInteger),
+        }
+    }
+
+    fn parse_expression<'a, T>(
+        tokens: &mut Peekable<T>,
+    ) -> Result<Expression, ParseError>
+    where T: Iterator<Item = &'a Token>{
+
+        match tokens.next() {
+            Some(tok) => match tok {
+                Token::Number { literal } => AST::parse_number(literal.to_string()),
+                Token::Variable { name } => Ok(Expression::Variable {
+                    name: name.to_string(),
+                }),
+                _ => Err(ParseError::TypeError),
+            },
+            None => Err(ParseError::EOF),
+        }
     }
 }
 
@@ -359,6 +428,57 @@ mod tests {
                             },
                         ],
                     },
+                ],
+            },
+        );
+    }
+
+    #[test]
+    fn parse_arithmetic_expression_test() {
+        // 10 + 7
+        let input = vec![
+            Token::Number { literal: "10".to_string() },
+            Token::Operator(Operator::Addition),
+            Token::Number { literal: "7".to_string() },
+        ];
+
+        assert_eq!(
+            AST::parse_arithmetic_expression(
+                &mut input.iter().peekable()).unwrap(),
+            Expression::ArithmeticExpression {
+                //rpn: "10 7 +".to_string(),
+                rpn: vec![
+                    Expression::Number { val: 10 },
+                    Expression::Number { val: 7 },
+                    Expression::Operator { op: Operator::Addition },
+                ],
+            },
+        );
+
+        // 10 + 7 * 8 - 2
+        let input = vec![
+            Token::Number { literal: "10".to_string() },
+            Token::Operator(Operator::Addition),
+            Token::Number { literal: "7".to_string() },
+            Token::Operator(Operator::Multiplication),
+            Token::Number { literal: "8".to_string() },
+            Token::Operator(Operator::Subtraction),
+            Token::Number { literal: "2".to_string() },
+        ];
+
+        assert_eq!(
+            AST::parse_arithmetic_expression(
+                &mut input.iter().peekable()).unwrap(),
+            Expression::ArithmeticExpression {
+                //rpn: "10 7 8 * + 2 -".to_string()
+                rpn: vec![
+                    Expression::Number { val: 10 },
+                    Expression::Number { val: 7 },
+                    Expression::Number { val: 8 },
+                    Expression::Operator { op: Operator::Multiplication },
+                    Expression::Operator { op: Operator::Addition },
+                    Expression::Number { val: 2 },
+                    Expression::Operator { op: Operator::Subtraction },
                 ],
             },
         );

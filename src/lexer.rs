@@ -25,6 +25,17 @@ pub enum Operator {
     Division,
 }
 
+impl Operator {
+    pub fn precedence(&self) -> usize {
+        use Operator::*;
+
+        match self {
+            Addition | Subtraction => 1,
+            Multiplication | Division => 2,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     // 0 arity

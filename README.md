@@ -4,11 +4,11 @@
 
 - commands that take three RGB values as input do not have any range checking on arguments
 
+- currently the only data type supported is Number (Variables can only be Numbers as well)
+
 ## Thoughts For Improvement
 
 Because I don't know what I'm doing, I'm just gonna brainstorm some things that I think I should be doing.
-
-- remove all type-checking from the initial build of the AST, do a second pass for type-checking... this ,,should'' allow for more easily adding a symbol table later on, if needed
 
 ## Supported Commands
 
