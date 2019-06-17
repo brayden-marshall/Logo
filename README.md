@@ -10,13 +10,6 @@
 
 Because I don't know what I'm doing, I'm just gonna brainstorm some things that I think I should be doing.
 
-Here's how we're gonna deal with parsing arithmetic expressions. We're gonna use `Peekable` to always look ahead
-one token and make sure that it's what we expect the next token to be. If it's a number we expect an operator and
-vice versa. If we get what we expected we go on as usual with the algorithm. If we do not get what we expected
-we return a parsing error. This actually shouldn't be very difficult, you got this bro. Also if it's too difficult
-to evaluate the arithmetic expression as reverse polish notation, we can convert it into a tree and it'll be easily
-peasily my dude. Goodnight.
-
 ## Supported Commands
 
 - Forward: `fd | forward`

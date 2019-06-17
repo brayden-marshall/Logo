@@ -147,6 +147,7 @@ impl<'a> Parser<'a> {
 
                     Token::Command(command) => Parser::parse_command(command.clone(), tokens),
                     Token::Repeat => Parser::parse_repeat(tokens),
+                    Token::Make => Parser::parse_variable_declaration(tokens),
                     _ => Err(ParseError::UnexpectedToken),
                 },
                 None => Err(ParseError::EOF),
@@ -510,6 +511,33 @@ mod tests {
                     Expression::Operator { op: Operator::Subtraction },
                 ],
             },
+        );
+
+        // :size + :count * :length
+        let input = vec![
+            Token::Variable { name: "size".to_string() },
+            Token::Operator(Operator::Addition),
+            Token::Variable { name: "count".to_string() },
+            Token::Operator(Operator::Multiplication),
+            Token::Variable { name: "length".to_string() },
+        ];
+
+        assert_eq!(
+            Parser::parse_arithmetic_expression(
+                &mut input.iter().peekable(),
+                None,
+                )
+                .unwrap(),
+            Expression::ArithmeticExpression {
+                // :size :count :length * +
+                rpn: vec![
+                    Expression::Variable { name: "size".to_string() },
+                    Expression::Variable { name: "count".to_string() },
+                    Expression::Variable { name: "length".to_string() },
+                    Expression::Operator { op: Operator::Multiplication },
+                    Expression::Operator { op: Operator::Addition },
+                ]
+            }
         );
     }
 }

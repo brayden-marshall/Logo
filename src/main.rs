@@ -89,10 +89,28 @@ fn run_ast(t: &mut Turtle, ast: &AST, vars: &mut HashMap<String, Expression>) {
     }
 }
 
+fn evaluate_expression(
+    expr: &Expression, 
+    vars: &mut HashMap<String, Expression>,
+) -> Result<isize, String> {
+    match expr {
+        Expression::Number { val } => Ok(*val),
+        Expression::Variable { name } => match vars.get(name) {
+            Some(e) => match e {
+                Expression::Number { val } => Ok(*val),
+                _ => Err(String::from("Expected number argument")),
+            },
+            None => Err(format!("Variable {} does not exist", name)),
+        },
+        Expression::ArithmeticExpression { rpn } => Ok(evaluate_rpn(rpn, vars)?),
+        _ => Err(String::from("There was an errorrrror")),
+    }
+}
+
 fn evaluate_rpn(
     rpn: &Vec<Expression>,
-    vars: &mut HashMap<String, Expression>,
-) -> isize {
+    vars: &HashMap<String, Expression>,
+) -> Result<isize, String> {
     let mut stack: Vec<isize> = Vec::new();
     for expr in rpn.iter() {
         match expr {
@@ -101,13 +119,14 @@ fn evaluate_rpn(
                 match vars.get(name) {
                     Some(e) => match e {
                         Expression::Number { val } => *val,
-                        _ => panic!("Expected number argument"),
+                        _ => return Err("Expected number argument".to_string()),
                     },
-                    None => panic!("Error: variable does not exist"),
+                    None => return Err("Error: variable does not exist".to_string()),
                 }),
             Expression::Operator { op } => {
                 let operand_2 = stack.pop().unwrap();
                 let operand_1 = stack.pop().unwrap();
+
                 let result = match op {
                     Operator::Addition => operand_1 + operand_2,
                     Operator::Subtraction => operand_1 - operand_2,
@@ -116,11 +135,11 @@ fn evaluate_rpn(
                 };
                 stack.push(result);
             },
-            _ => panic!("reverse polish notation should only contain
-                         numbers, variables and operators"),
+            _ => return Err("reverse polish notation should only contain
+                         numbers, variables and operators".to_string()),
         }
     }
-    stack[0]
+    Ok(stack[0])
 }
 
 fn run_statement(t: &mut Turtle, stmt: &Statement, 
@@ -131,38 +150,20 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
     match stmt {
         Statement::VariableDeclaration { name, val } => {
             let _val = (**val).clone();
-            vars.insert(name.to_string(), match _val {
-                Expression::Number {val: _} => _val,
-                Expression::Variable { name } => match vars.get(&name) {
-                    Some(e) => match e {
-                        Expression::Number { val } => Expression::Number { 
-                            val: val.clone()
-                        },
-                        _ => return Err(String::from("Expected number argument")),
-                    },
-                    None => return Err(format!("Variable {} does not exist", name)),
-                },
-                _ => return Err(String::from("There was an errorrrror")),
-            });
-            println!("Vars: {:?}", vars);
+            let expr = Expression::Number {
+                val: evaluate_expression(&_val, vars)?
+            };
+
+            vars.insert(
+                name.to_string(),
+                expr,
+            );
         }
 
         Statement::Command { command, args: _args } => {
             let mut args: Vec<f64> = Vec::new();
             for arg in _args.iter() {
-                match arg {
-                    Expression::Number { val } => args.push(*val as f64),
-                    Expression::Variable { name } => match vars.get(name) {
-                        Some(e) => match e {
-                            Expression::Number { val } => args.push(*val as f64),
-                            _ => return Err(String::from("Expected number argument")),
-                        },
-                        None => return Err(format!("Variable {} does not exist", name)),
-                    },
-                    Expression::ArithmeticExpression { rpn } => 
-                        args.push(evaluate_rpn(rpn, vars) as f64),
-                    _ => return Err(String::from("Arithmetic expressions not yet supported")),
-                }
+                args.push(evaluate_expression(arg, vars)? as f64);
             }
 
             match command {
@@ -225,4 +226,61 @@ fn get_input() -> String {
         .expect("Failed to read user input");
 
     input.trim().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn evaluate_rpn_test() {
+        let mut vars: HashMap<String, Expression> = HashMap::new();
+        vars.insert("count".to_string(), Expression::Number { val: 10 });
+        vars.insert("size".to_string(), Expression::Number { val: 50 });
+
+        // 10 5 /
+        let rpn = vec![
+            Expression::Number { val: 10 },
+            Expression::Number { val: 5 },
+            Expression::Operator { op: Operator::Division },
+        ];
+
+        assert_eq!(
+            evaluate_rpn(&rpn, &vars).unwrap(),
+            2,
+        );
+
+        // evaluating 10 * :count + :size / 10
+        // in rpn: '10 :count * :size 10 / +'
+        let rpn = vec![
+            Expression::Number { val: 10 },
+            Expression::Variable { name: "count".to_string() },
+            Expression::Operator { op: Operator::Multiplication },
+            Expression::Variable { name: "size".to_string() },
+            Expression::Number { val: 10 },
+            Expression::Operator { op: Operator::Division },
+            Expression::Operator { op: Operator::Addition },
+        ];
+
+        assert_eq!(
+            evaluate_rpn(&rpn, &vars).unwrap(),
+            105,
+        );
+
+        // 10 7 8 * + 2 -
+        let rpn = vec![
+            Expression::Number { val: 10 },
+            Expression::Number { val: 7 },
+            Expression::Number { val: 8 },
+            Expression::Operator { op: Operator::Multiplication },
+            Expression::Operator { op: Operator::Addition },
+            Expression::Number { val: 2 },
+            Expression::Operator { op: Operator::Subtraction },
+        ];
+
+        assert_eq!(
+            evaluate_rpn(&rpn, &vars).unwrap(),
+            64,
+        );
+    }
 }
