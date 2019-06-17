@@ -197,6 +197,7 @@ impl<'a> Parser<'a> {
             match tokens.peek() {
                 Some(tok) => match tok {
                     Token::Number { literal: _ } => (),
+                    Token::Variable { name: _ } => (),
                     Token::Operator(_) => (),
                     _ => break,
                 },
@@ -205,7 +206,12 @@ impl<'a> Parser<'a> {
 
             if let Some(tok) = tokens.next() {
                 match tok {
-                    Token::Number { literal } => output.push(Parser::parse_number(literal.to_string())?),
+                    Token::Number { literal } =>
+                        output.push(Parser::parse_number(literal.to_string())?),
+                    Token::Variable { name } =>
+                        output.push(Expression::Variable {
+                            name: name.to_string(),
+                        }),
                     Token::Operator(op) => {
                         while !operator_stack.is_empty() &&
                               op.precedence() 

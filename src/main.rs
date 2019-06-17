@@ -8,7 +8,7 @@ use turtle::Turtle;
 mod lexer;
 mod parser;
 
-use lexer::{Command, Lexer, Token};
+use lexer::{Command, Lexer, Token, Operator};
 use parser::{Parser, Statement, Expression, AST};
 
 fn main() {
@@ -89,6 +89,40 @@ fn run_ast(t: &mut Turtle, ast: &AST, vars: &mut HashMap<String, Expression>) {
     }
 }
 
+fn evaluate_rpn(
+    rpn: &Vec<Expression>,
+    vars: &mut HashMap<String, Expression>,
+) -> isize {
+    let mut stack: Vec<isize> = Vec::new();
+    for expr in rpn.iter() {
+        match expr {
+            Expression::Number { val } => stack.push(*val),
+            Expression::Variable { name } => stack.push(
+                match vars.get(name) {
+                    Some(e) => match e {
+                        Expression::Number { val } => *val,
+                        _ => panic!("Expected number argument"),
+                    },
+                    None => panic!("Error: variable does not exist"),
+                }),
+            Expression::Operator { op } => {
+                let operand_2 = stack.pop().unwrap();
+                let operand_1 = stack.pop().unwrap();
+                let result = match op {
+                    Operator::Addition => operand_1 + operand_2,
+                    Operator::Subtraction => operand_1 - operand_2,
+                    Operator::Multiplication => operand_1 * operand_2,
+                    Operator::Division => operand_1 / operand_2,
+                };
+                stack.push(result);
+            },
+            _ => panic!("reverse polish notation should only contain
+                         numbers, variables and operators"),
+        }
+    }
+    stack[0]
+}
+
 fn run_statement(t: &mut Turtle, stmt: &Statement, 
                       vars: &mut HashMap<String, Expression>) 
 -> Result<(), String> {
@@ -108,10 +142,9 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
                     },
                     None => return Err(format!("Variable {} does not exist", name)),
                 },
-                _ => return Err(String::from("Arithmetic expressions not yet supported")),
+                _ => return Err(String::from("There was an errorrrror")),
             });
             println!("Vars: {:?}", vars);
-            ()
         }
 
         Statement::Command { command, args: _args } => {
@@ -126,6 +159,8 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
                         },
                         None => return Err(format!("Variable {} does not exist", name)),
                     },
+                    Expression::ArithmeticExpression { rpn } => 
+                        args.push(evaluate_rpn(rpn, vars) as f64),
                     _ => return Err(String::from("Arithmetic expressions not yet supported")),
                 }
             }
