@@ -1,19 +1,6 @@
 use crate::lexer::{Command, Operator, Token};
 use std::iter::Peekable;
 
-#[derive(Debug, PartialEq)]
-pub struct AST {
-    pub statements: Vec<Statement>,
-}
-
-impl AST {
-    pub fn new() -> Self {
-        AST {
-            statements: vec![],
-        }
-    }
-}
-
 /// Statements are any logo 'sentence' that does not evaluate to a value
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
@@ -59,20 +46,42 @@ pub enum ParseError {
     ParseInteger,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct AST {
+    pub statements: Vec<Statement>,
+}
+
 impl AST {
-    // main parsing logic. currently does not handle varying argument types
-    pub fn build(tokens: &Vec<Token>) -> Result<AST, ParseError> {
+    pub fn new() -> Self {
+        AST {
+            statements: vec![],
+        }
+    }
+}
+
+pub struct Parser<'a> {
+    tokens: Peekable<std::slice::Iter<'a, Token>>,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(tokens: &'a Vec<Token>) -> Self {
+        Parser {
+            tokens: tokens.iter().peekable(),
+        }
+    }
+
+    pub fn build_ast(&mut self) -> Result<AST, ParseError> {
         let mut ast = AST::new();
 
-        let mut token_iter = tokens.iter();
-        while let Some(tok) = token_iter.next() {
+        //let mut token_iter = self.tokens.iter();
+        while let Some(tok) = self.tokens.next() {
             let expr = match tok {
                 Token::Command(command) => 
-                    AST::parse_command(command.clone(), &mut token_iter),
+                    Parser::parse_command(command.clone(), &mut self.tokens),
 
-                Token::Repeat => AST::parse_repeat(&mut token_iter),
+                Token::Repeat => Parser::parse_repeat(&mut self.tokens),
 
-                Token::Make => AST::parse_variable_declaration(&mut token_iter),
+                Token::Make => Parser::parse_variable_declaration(&mut self.tokens),
                 _ => Err(ParseError::UnexpectedToken),
             };
 
@@ -85,16 +94,16 @@ impl AST {
     }
 
     // takes a command
-    fn parse_command<'a, T>(
+    fn parse_command<T>(
         command: Command,
-        tokens: &mut T,
+        tokens: &mut Peekable<T>,
     ) -> Result<Statement, ParseError>
     where T: Iterator<Item = &'a Token>{
         let mut args: Vec<Expression> = Vec::new();
         // consuming the next tokens as arguments according to how many
         // the arguments the command takes as input
         for _ in 0..command.arity() {
-            match AST::parse_expression(&mut tokens.peekable()) {
+            match Parser::parse_expression(tokens) {
                 Ok(e) => args.push(e),
                 Err(e) => return Err(e),
             }
@@ -103,8 +112,8 @@ impl AST {
         Ok(Statement::Command { command, args })
     }
 
-    fn parse_repeat<'a, T>(
-        tokens: &mut T,
+    fn parse_repeat<T>(
+        tokens: &mut Peekable<T>,
     ) -> Result<Statement, ParseError> 
     where T: Iterator<Item = &'a Token> {
         let mut body: Vec<Statement> = Vec::new();
@@ -121,14 +130,6 @@ impl AST {
             None => Err(ParseError::TypeError),
         }?;
 
-        /*
-        // handle the possible integer parsing error
-        let count: usize = match count {
-            Ok(n) => n,
-            Err(e) => return Err(e),
-        };
-        */
-
         // check for a left bracket to start the body of repeat command
         match tokens.next() {
             Some(tok) => match tok {
@@ -144,8 +145,8 @@ impl AST {
                 Some(tok) => match tok {
                     Token::RBracket => break,
 
-                    Token::Command(command) => AST::parse_command(command.clone(), tokens),
-                    Token::Repeat => AST::parse_repeat(tokens),
+                    Token::Command(command) => Parser::parse_command(command.clone(), tokens),
+                    Token::Repeat => Parser::parse_repeat(tokens),
                     _ => Err(ParseError::UnexpectedToken),
                 },
                 None => Err(ParseError::EOF),
@@ -160,8 +161,8 @@ impl AST {
         Ok(Statement::Repeat { count, body })
     }
 
-    fn parse_variable_declaration<'a, T>(
-        tokens: &mut T,
+    fn parse_variable_declaration<T>(
+        tokens: &mut Peekable<T>,
     ) -> Result<Statement, ParseError>
     where T: Iterator<Item = &'a Token> {
         let name = match tokens.next() {
@@ -172,7 +173,7 @@ impl AST {
             None => return Err(ParseError::EOF),
         };
 
-        let val: Box<Expression> = match AST::parse_expression(&mut tokens.peekable()) {
+        let val: Box<Expression> = match Parser::parse_expression(tokens) {
             Ok(e) => Box::new(e),
             Err(e) => return Err(e),
         };
@@ -180,12 +181,17 @@ impl AST {
         Ok(Statement::VariableDeclaration { name, val })
     }
     
-    fn parse_arithmetic_expression<'a, T>(
+    fn parse_arithmetic_expression<T>(
         tokens: &mut Peekable<T>,
+        first: Option<Expression>,
     ) -> Result<Expression, ParseError>
     where T: Iterator<Item = &'a Token>{
         let mut operator_stack: Vec<Operator> = Vec::new();
-        let mut output: Vec<Expression> = Vec::new();
+        //let mut output: Vec<Expression> = vec![first];
+        let mut output: Vec<Expression> = match first {
+            Some(expr) => vec![expr],
+            None => vec![],
+        };
         loop {
             // check that the next token is either a number or an operator
             match tokens.peek() {
@@ -199,7 +205,7 @@ impl AST {
 
             if let Some(tok) = tokens.next() {
                 match tok {
-                    Token::Number { literal } => output.push(AST::parse_number(literal.to_string())?),
+                    Token::Number { literal } => output.push(Parser::parse_number(literal.to_string())?),
                     Token::Operator(op) => {
                         while !operator_stack.is_empty() &&
                               op.precedence() 
@@ -237,21 +243,29 @@ impl AST {
         }
     }
 
-    fn parse_expression<'a, T>(
+    fn parse_expression<T>(
         tokens: &mut Peekable<T>,
     ) -> Result<Expression, ParseError>
-    where T: Iterator<Item = &'a Token>{
-
-        match tokens.next() {
+    where T: Iterator<Item = &'a Token> {
+        let mut expr = match tokens.next() {
             Some(tok) => match tok {
-                Token::Number { literal } => AST::parse_number(literal.to_string()),
+                Token::Number { literal } => Parser::parse_number(literal.to_string()),
                 Token::Variable { name } => Ok(Expression::Variable {
                     name: name.to_string(),
                 }),
                 _ => Err(ParseError::TypeError),
             },
             None => Err(ParseError::EOF),
+        }?;
+
+        // look ahead one token to check for an operator
+        if let Some(tok) = tokens.peek() {
+            if let Token::Operator(_) = tok {
+                expr = Parser::parse_arithmetic_expression(tokens, Some(expr))?;
+            }
         }
+
+        Ok(expr)
     }
 }
 
@@ -260,7 +274,7 @@ mod tests {
     use super::*;
 
     fn parse_test(input: Vec<Token>, expected: AST) {
-        let ast = AST::build(&input).unwrap();
+        let ast = Parser::new(&input).build_ast().unwrap();
         assert_eq!(ast, expected);
     }
 
@@ -287,14 +301,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn parse_not_enough_arguments_test() {
-        AST::build(&vec![Token::Command(Command::Forward)]).unwrap();
+        Parser::new(&vec![Token::Command(Command::Forward)])
+            .build_ast()
+            .unwrap();
     }
 
     #[test]
     #[should_panic]
     fn parse_too_many_arguments_test() {
         // too many arguments for command forward "fd 100 101"
-        AST::build(&vec![
+        Parser::new(&vec![
             Token::Command(Command::Forward),
             Token::Number {
                 literal: String::from("100"),
@@ -303,6 +319,7 @@ mod tests {
                 literal: String::from("101"),
             },
         ])
+        .build_ast()
         .unwrap();
     }
 
@@ -443,8 +460,11 @@ mod tests {
         ];
 
         assert_eq!(
-            AST::parse_arithmetic_expression(
-                &mut input.iter().peekable()).unwrap(),
+            Parser::parse_arithmetic_expression(
+                &mut input.iter().peekable(),
+                None
+                )
+                .unwrap(),
             Expression::ArithmeticExpression {
                 //rpn: "10 7 +".to_string(),
                 rpn: vec![
@@ -467,8 +487,11 @@ mod tests {
         ];
 
         assert_eq!(
-            AST::parse_arithmetic_expression(
-                &mut input.iter().peekable()).unwrap(),
+            Parser::parse_arithmetic_expression(
+                &mut input.iter().peekable(),
+                None,
+                )
+                .unwrap(),
             Expression::ArithmeticExpression {
                 //rpn: "10 7 8 * + 2 -".to_string()
                 rpn: vec![

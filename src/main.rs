@@ -9,7 +9,7 @@ mod lexer;
 mod parser;
 
 use lexer::{Command, Lexer, Token};
-use parser::{Statement, Expression, AST};
+use parser::{Parser, Statement, Expression, AST};
 
 fn main() {
     let matches = App::new("Logo")
@@ -61,13 +61,16 @@ fn run_program(t: &mut Turtle, input: &str, debug: bool, vars: &mut HashMap<Stri
             }
         }
     }
+
     if debug {
         println!("{:?}", tokens);
     }
 
+    let mut parser = Parser::new(&tokens);
+
     // building the AST out of the tokens and running the program
     // based off of the AST
-    match AST::build(&tokens) {
+    match parser.build_ast() {
         Ok(ast) => {
             if debug {
                 println!("{:?}", ast);
