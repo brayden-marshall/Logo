@@ -55,6 +55,8 @@ pub enum Command {
     Left,
     Right,
     SetPenSize,
+    SetHeading,
+    Show,
 
     // 2 arity
     SetXY,
@@ -70,10 +72,11 @@ impl Command {
         use Command::*;
 
         match self {
-            Exit | ClearScreen | Clean | PenUp | PenDown | HideTurtle | ShowTurtle | Home
-            | Fill => 0,
+            Exit | ClearScreen | Clean | PenUp | PenDown | HideTurtle 
+            | ShowTurtle | Home | Fill => 0,
 
-            Forward | Backward | Left | Right | SetPenSize => 1,
+            Forward | Backward | Left | Right | SetPenSize
+            | Show | SetHeading => 1,
 
             SetXY => 2,
 
@@ -205,8 +208,16 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
             regex: regex(r"^(setscreencolor|setsc)"),
         },
         TokenDefinition {
+            token: Token::Command(Command::SetHeading),
+            regex: regex(r"^(setheading|seth)"),
+        },
+        TokenDefinition {
             token: Token::Command(Command::Fill),
             regex: regex(r"^fill"),
+        },
+        TokenDefinition {
+            token: Token::Command(Command::Show),
+            regex: regex(r"^show"),
         },
         TokenDefinition {
             token: Token::Repeat,
@@ -428,7 +439,7 @@ mod tests {
             cs clearscreen home exit
             fd forward bk backward lt left rt right setxy clean
             setps setpensize setpc setpencolor setfc setfillcolor
-            setsc setscreencolor fill
+            setsc setscreencolor fill show seth setheading
             ",
             commands!(
                 PenUp,
@@ -461,7 +472,10 @@ mod tests {
                 SetFillColor,
                 SetScreenColor,
                 SetScreenColor,
-                Fill
+                Fill,
+                Show,
+                SetHeading,
+                SetHeading
             ),
         );
     }

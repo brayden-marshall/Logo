@@ -1,0 +1,8 @@
+setsc 255 255 000
+setpensize 2 setpc 255 0 0
+pu make "a 0
+repeat 12 [
+    make "a :a + 30 setpc 255 0 0
+    pu home seth :a pd fd 150
+    pu setpc 0 0 255
+]

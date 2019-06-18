@@ -48,7 +48,12 @@ fn main() {
     }
 }
 
-fn run_program(t: &mut Turtle, input: &str, debug: bool, vars: &mut HashMap<String, Expression>) {
+fn run_program(
+    t: &mut Turtle,
+    input: &str,
+    debug: bool,
+    vars: &mut HashMap<String, Expression>,
+) {
     // lexing input and returning vector of tokens
     let mut lexer = Lexer::new(&input);
     let mut tokens: Vec<Token> = Vec::new();
@@ -187,6 +192,8 @@ fn run_statement(t: &mut Turtle, stmt: &Statement,
                 Command::Left => t.left(args[0]),
                 Command::Right => t.right(args[0]),
                 Command::SetPenSize => t.set_pen_size(args[0]),
+                Command::SetHeading => t.set_heading(args[0]),
+                Command::Show => println!("{}", args[0]),
 
                 // 2 arity
                 Command::SetXY => t.go_to([args[0], args[1]]),
