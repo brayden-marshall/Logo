@@ -2,9 +2,27 @@
 
 ## Issues
 
-- commands that take three RGB values as input do not have any range checking on arguments
+- error reporting is currently terrible and needs to be worked on, we need:
+    - create error type for runtime errors in `main.rs`
+    - possibly more error types: or adding value fields to error enum types if applicable
+    - location that the error occured
+    - implement Display on errory types instead of using Debug
+    - as much information as possible in messages
+
+- (do some research if this is the way it should be or not) allow for either CAPS or lowercase for commands, but not mixed i.e.
+```
+forward 100 // yes
+FORWARD 100 // yes
+FoRWard 100 // no
+```
+
+- find good way to be able to implement (parse is the main issue) prefix functions on numbers i.e. `random 100 sqrt 64`
+
+- commands that take multiple arguments (setpencolor, etc.) should take an array as an argument? `setpencolor [255 123 123]`
 
 - currently the only data type supported is Number (Variables can only be Numbers as well)
+
+- arithmetic expressions do not support parentheses
 
 ## Supported Commands
 

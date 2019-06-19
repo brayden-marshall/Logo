@@ -1,5 +1,6 @@
 use crate::lexer::{Command, Operator, Token};
 use std::iter::Peekable;
+use std::slice;
 
 /// Statements are any logo 'sentence' that does not evaluate to a value
 #[derive(Debug, PartialEq, Clone)]
@@ -60,7 +61,7 @@ impl AST {
 }
 
 pub struct Parser<'a> {
-    tokens: Peekable<std::slice::Iter<'a, Token>>,
+    tokens: Peekable<slice::Iter<'a, Token>>,
 }
 
 impl<'a> Parser<'a> {
@@ -73,37 +74,40 @@ impl<'a> Parser<'a> {
     pub fn build_ast(&mut self) -> Result<AST, ParseError> {
         let mut ast = AST::new();
 
-        //let mut token_iter = self.tokens.iter();
         while let Some(tok) = self.tokens.next() {
-            let expr = match tok {
-                Token::Command(command) => 
-                    Parser::parse_command(command.clone(), &mut self.tokens),
-
-                Token::Repeat => Parser::parse_repeat(&mut self.tokens),
-
-                Token::Make => Parser::parse_variable_declaration(&mut self.tokens),
-                _ => Err(ParseError::UnexpectedToken),
-            };
-
-            match expr {
-                Ok(e) => ast.statements.push(e),
-                Err(err) => return Err(err),
-            }
+            ast.statements.push(
+                self.parse_statement(tok)?
+            );
         }
         Ok(ast)
     }
 
+    fn parse_statement(
+        &mut self,
+        token: &Token,
+    ) -> Result<Statement, ParseError> {
+        match token {
+            Token::Command(command) =>
+                self.parse_command(command.clone()),
+
+            Token::Repeat => self.parse_repeat(),
+
+            Token::Make => self.parse_variable_declaration(),
+
+            _ => Err(ParseError::UnexpectedToken),
+        }
+    }
+
     // takes a command
-    fn parse_command<T>(
+    fn parse_command(
+        &mut self,
         command: Command,
-        tokens: &mut Peekable<T>,
-    ) -> Result<Statement, ParseError>
-    where T: Iterator<Item = &'a Token>{
+    ) -> Result<Statement, ParseError> {
         let mut args: Vec<Expression> = Vec::new();
         // consuming the next tokens as arguments according to how many
         // the arguments the command takes as input
         for _ in 0..command.arity() {
-            match Parser::parse_expression(tokens) {
+            match self.parse_expression() {
                 Ok(e) => args.push(e),
                 Err(e) => return Err(e),
             }
@@ -112,14 +116,13 @@ impl<'a> Parser<'a> {
         Ok(Statement::Command { command, args })
     }
 
-    fn parse_repeat<T>(
-        tokens: &mut Peekable<T>,
-    ) -> Result<Statement, ParseError> 
-    where T: Iterator<Item = &'a Token> {
+    fn parse_repeat(
+        &mut self,
+    ) -> Result<Statement, ParseError> {
         let mut body: Vec<Statement> = Vec::new();
 
         // check that the next number is a number, and parse it
-        let count: usize = match tokens.next() {
+        let count: usize = match self.tokens.next() {
             Some(tok) => match tok {
                 Token::Number { literal } => match literal.parse() {
                     Ok(n) => Ok(n),
@@ -131,7 +134,7 @@ impl<'a> Parser<'a> {
         }?;
 
         // check for a left bracket to start the body of repeat command
-        match tokens.next() {
+        match self.tokens.next() {
             Some(tok) => match tok {
                 Token::LBracket => (),
                 _ => return Err(ParseError::UnexpectedToken),
@@ -141,13 +144,13 @@ impl<'a> Parser<'a> {
 
         // parse expressions of repeat body until we find a closing bracket
         loop {
-            let statement = match tokens.next() {
+            let statement = match self.tokens.next() {
                 Some(tok) => match tok {
                     Token::RBracket => break,
 
-                    Token::Command(command) => Parser::parse_command(command.clone(), tokens),
-                    Token::Repeat => Parser::parse_repeat(tokens),
-                    Token::Make => Parser::parse_variable_declaration(tokens),
+                    Token::Command(command) => self.parse_command(command.clone()),
+                    Token::Repeat => self.parse_repeat(),
+                    Token::Make => self.parse_variable_declaration(),
                     _ => Err(ParseError::UnexpectedToken),
                 },
                 None => Err(ParseError::EOF),
@@ -162,11 +165,10 @@ impl<'a> Parser<'a> {
         Ok(Statement::Repeat { count, body })
     }
 
-    fn parse_variable_declaration<T>(
-        tokens: &mut Peekable<T>,
-    ) -> Result<Statement, ParseError>
-    where T: Iterator<Item = &'a Token> {
-        let name = match tokens.next() {
+    fn parse_variable_declaration(
+        &mut self,
+    ) -> Result<Statement, ParseError> {
+        let name = match self.tokens.next() {
             Some(tok) => match tok {
                 Token::Word { literal } => literal.to_string(),
                 _ => return Err(ParseError::UnexpectedToken),
@@ -174,7 +176,7 @@ impl<'a> Parser<'a> {
             None => return Err(ParseError::EOF),
         };
 
-        let val: Box<Expression> = match Parser::parse_expression(tokens) {
+        let val: Box<Expression> = match self.parse_expression() {
             Ok(e) => Box::new(e),
             Err(e) => return Err(e),
         };
@@ -186,7 +188,7 @@ impl<'a> Parser<'a> {
         tokens: &mut Peekable<T>,
         first: Option<Expression>,
     ) -> Result<Expression, ParseError>
-    where T: Iterator<Item = &'a Token>{
+    where T: Iterator<Item = &'a Token> {
         let mut operator_stack: Vec<Operator> = Vec::new();
         //let mut output: Vec<Expression> = vec![first];
         let mut output: Vec<Expression> = match first {
@@ -250,11 +252,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_expression<T>(
-        tokens: &mut Peekable<T>,
-    ) -> Result<Expression, ParseError>
-    where T: Iterator<Item = &'a Token> {
-        let mut expr = match tokens.next() {
+    fn parse_expression(
+        &mut self,
+    ) -> Result<Expression, ParseError> {
+        let mut expr = match self.tokens.next() {
             Some(tok) => match tok {
                 Token::Number { literal } => Parser::parse_number(literal.to_string()),
                 Token::Variable { name } => Ok(Expression::Variable {
@@ -266,9 +267,9 @@ impl<'a> Parser<'a> {
         }?;
 
         // look ahead one token to check for an operator
-        if let Some(tok) = tokens.peek() {
+        if let Some(tok) = self.tokens.peek() {
             if let Token::Operator(_) = tok {
-                expr = Parser::parse_arithmetic_expression(tokens, Some(expr))?;
+                expr = Parser::parse_arithmetic_expression(&mut self.tokens, Some(expr))?;
             }
         }
 
