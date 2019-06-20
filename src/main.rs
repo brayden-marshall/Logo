@@ -8,8 +8,8 @@ use turtle::Turtle;
 mod lexer;
 mod parser;
 
-use lexer::{Command, Lexer, Token, Operator};
-use parser::{Parser, Statement, Expression, AST};
+use lexer::{Command, Lexer, Operator, Token};
+use parser::{Expression, Parser, Statement, AST};
 
 fn main() {
     let matches = App::new("Logo")
@@ -48,12 +48,7 @@ fn main() {
     }
 }
 
-fn run_program(
-    t: &mut Turtle,
-    input: &str,
-    debug: bool,
-    vars: &mut HashMap<String, Expression>,
-) {
+fn run_program(t: &mut Turtle, input: &str, debug: bool, vars: &mut HashMap<String, Expression>) {
     // lexing input and returning vector of tokens
     let mut lexer = Lexer::new(&input);
     let mut tokens: Vec<Token> = Vec::new();
@@ -95,7 +90,7 @@ fn run_ast(t: &mut Turtle, ast: &AST, vars: &mut HashMap<String, Expression>) {
 }
 
 fn evaluate_expression(
-    expr: &Expression, 
+    expr: &Expression,
     vars: &mut HashMap<String, Expression>,
 ) -> Result<isize, String> {
     match expr {
@@ -107,27 +102,26 @@ fn evaluate_expression(
             },
             None => Err(format!("Variable {} does not exist", name)),
         },
-        Expression::ArithmeticExpression { rpn } => Ok(evaluate_rpn(rpn, vars)?),
+        Expression::ArithmeticExpression { postfix } => Ok(evaluate_postfix(postfix, vars)?),
         _ => Err(String::from("There was an errorrrror")),
     }
 }
 
-fn evaluate_rpn(
-    rpn: &Vec<Expression>,
+fn evaluate_postfix(
+    postfix: &Vec<Expression>,
     vars: &HashMap<String, Expression>,
 ) -> Result<isize, String> {
     let mut stack: Vec<isize> = Vec::new();
-    for expr in rpn.iter() {
+    for expr in postfix.iter() {
         match expr {
             Expression::Number { val } => stack.push(*val),
-            Expression::Variable { name } => stack.push(
-                match vars.get(name) {
-                    Some(e) => match e {
-                        Expression::Number { val } => *val,
-                        _ => return Err("Expected number argument".to_string()),
-                    },
-                    None => return Err("Error: variable does not exist".to_string()),
-                }),
+            Expression::Variable { name } => stack.push(match vars.get(name) {
+                Some(e) => match e {
+                    Expression::Number { val } => *val,
+                    _ => return Err("Expected number argument".to_string()),
+                },
+                None => return Err("Error: variable does not exist".to_string()),
+            }),
             Expression::Operator { op } => {
                 let operand_2 = stack.pop().unwrap();
                 let operand_1 = stack.pop().unwrap();
@@ -139,33 +133,38 @@ fn evaluate_rpn(
                     Operator::Division => operand_1 / operand_2,
                 };
                 stack.push(result);
-            },
-            _ => return Err("reverse polish notation should only contain
-                         numbers, variables and operators".to_string()),
+            }
+            _ => {
+                return Err("reverse polish notation should only contain
+                         numbers, variables and operators"
+                    .to_string())
+            }
         }
     }
     Ok(stack[0])
 }
 
-fn run_statement(t: &mut Turtle, stmt: &Statement, 
-                      vars: &mut HashMap<String, Expression>) 
--> Result<(), String> {
+fn run_statement(
+    t: &mut Turtle,
+    stmt: &Statement,
+    vars: &mut HashMap<String, Expression>,
+) -> Result<(), String> {
     // currently does not handle varying argument types,
     // only accept LOGO number values as command arguments
     match stmt {
         Statement::VariableDeclaration { name, val } => {
             let _val = (**val).clone();
             let expr = Expression::Number {
-                val: evaluate_expression(&_val, vars)?
+                val: evaluate_expression(&_val, vars)?,
             };
 
-            vars.insert(
-                name.to_string(),
-                expr,
-            );
+            vars.insert(name.to_string(), expr);
         }
 
-        Statement::Command { command, args: _args } => {
+        Statement::Command {
+            command,
+            args: _args,
+        } => {
             let mut args: Vec<f64> = Vec::new();
             for arg in _args.iter() {
                 args.push(evaluate_expression(arg, vars)? as f64);
@@ -240,54 +239,63 @@ mod tests {
     use super::*;
 
     #[test]
-    fn evaluate_rpn_test() {
+    fn evaluate_postfix_test() {
         let mut vars: HashMap<String, Expression> = HashMap::new();
         vars.insert("count".to_string(), Expression::Number { val: 10 });
         vars.insert("size".to_string(), Expression::Number { val: 50 });
 
         // 10 5 /
-        let rpn = vec![
+        let postfix = vec![
             Expression::Number { val: 10 },
             Expression::Number { val: 5 },
-            Expression::Operator { op: Operator::Division },
+            Expression::Operator {
+                op: Operator::Division,
+            },
         ];
 
-        assert_eq!(
-            evaluate_rpn(&rpn, &vars).unwrap(),
-            2,
-        );
+        assert_eq!(evaluate_postfix(&postfix, &vars).unwrap(), 2,);
 
         // evaluating 10 * :count + :size / 10
-        // in rpn: '10 :count * :size 10 / +'
-        let rpn = vec![
+        // in postfix: '10 :count * :size 10 / +'
+        let postfix = vec![
             Expression::Number { val: 10 },
-            Expression::Variable { name: "count".to_string() },
-            Expression::Operator { op: Operator::Multiplication },
-            Expression::Variable { name: "size".to_string() },
+            Expression::Variable {
+                name: "count".to_string(),
+            },
+            Expression::Operator {
+                op: Operator::Multiplication,
+            },
+            Expression::Variable {
+                name: "size".to_string(),
+            },
             Expression::Number { val: 10 },
-            Expression::Operator { op: Operator::Division },
-            Expression::Operator { op: Operator::Addition },
+            Expression::Operator {
+                op: Operator::Division,
+            },
+            Expression::Operator {
+                op: Operator::Addition,
+            },
         ];
 
-        assert_eq!(
-            evaluate_rpn(&rpn, &vars).unwrap(),
-            105,
-        );
+        assert_eq!(evaluate_postfix(&postfix, &vars).unwrap(), 105,);
 
         // 10 7 8 * + 2 -
-        let rpn = vec![
+        let postfix = vec![
             Expression::Number { val: 10 },
             Expression::Number { val: 7 },
             Expression::Number { val: 8 },
-            Expression::Operator { op: Operator::Multiplication },
-            Expression::Operator { op: Operator::Addition },
+            Expression::Operator {
+                op: Operator::Multiplication,
+            },
+            Expression::Operator {
+                op: Operator::Addition,
+            },
             Expression::Number { val: 2 },
-            Expression::Operator { op: Operator::Subtraction },
+            Expression::Operator {
+                op: Operator::Subtraction,
+            },
         ];
 
-        assert_eq!(
-            evaluate_rpn(&rpn, &vars).unwrap(),
-            64,
-        );
+        assert_eq!(evaluate_postfix(&postfix, &vars).unwrap(), 64,);
     }
 }

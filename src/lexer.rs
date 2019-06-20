@@ -3,21 +3,6 @@ use regex::Regex;
 use std::iter::FromIterator;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token {
-    Command(Command),
-    Operator(Operator),
-
-    Number { literal: String },
-    Word { literal: String },
-    Variable { name: String },
-
-    Repeat,
-    Make,
-    LBracket,
-    RBracket,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Operator {
     Addition,
     Subtraction,
@@ -30,8 +15,8 @@ impl Operator {
         use Operator::*;
 
         match self {
-            Addition | Subtraction => 1,
             Multiplication | Division => 2,
+            Addition | Subtraction => 1,
         }
     }
 }
@@ -72,11 +57,10 @@ impl Command {
         use Command::*;
 
         match self {
-            Exit | ClearScreen | Clean | PenUp | PenDown | HideTurtle 
-            | ShowTurtle | Home | Fill => 0,
+            Exit | ClearScreen | Clean | PenUp | PenDown | HideTurtle | ShowTurtle | Home
+            | Fill => 0,
 
-            Forward | Backward | Left | Right | SetPenSize
-            | Show | SetHeading => 1,
+            Forward | Backward | Left | Right | SetPenSize | Show | SetHeading => 1,
 
             SetXY => 2,
 
@@ -85,21 +69,20 @@ impl Command {
     }
 }
 
-// currently takes a reference to str as it's input source, in future it
-// should ideally be changed to take an Iterator over chars, to be more
-// flexible toward input source type
-pub struct Lexer<'a> {
-    source: &'a str,
-    index: usize,
-    token_definitions: Vec<TokenDefinition>,
-}
+#[derive(Debug, Clone, PartialEq)]
+pub enum Token {
+    Command(Command),
+    Operator(Operator),
 
-#[derive(Debug)]
-pub enum LexError {
-    UnrecognizedToken,
-}
+    Number { literal: String },
+    Word { literal: String },
+    Variable { name: String },
 
-type LexResult = Result<Token, LexError>;
+    Repeat,
+    Make,
+    LBracket,
+    RBracket,
+}
 
 struct TokenDefinition {
     token: Token,
@@ -254,6 +237,22 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
     ]
 }
 
+#[derive(Debug)]
+pub enum LexError {
+    UnrecognizedToken,
+}
+
+type LexResult = Result<Token, LexError>;
+
+// currently takes a reference to str as it's input source, in future it
+// should ideally be changed to take an Iterator over chars, to be more
+// flexible toward input source type
+pub struct Lexer<'a> {
+    source: &'a str,
+    index: usize,
+    token_definitions: Vec<TokenDefinition>,
+}
+
 impl<'a> Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
@@ -307,7 +306,7 @@ impl<'a> Iterator for Lexer<'a> {
                     Token::Variable { name: _ } => Token::Variable {
                         name: String::from(
                             // index+1 to ignore the leading : character
-                            &self.source[self.index+1..self.index + m.end()],
+                            &self.source[self.index + 1..self.index + m.end()],
                         ),
                     },
                     _ => def.token.clone(),
@@ -479,7 +478,7 @@ mod tests {
             ),
         );
     }
-    
+
     #[test]
     fn lex_operator_test() {
         lex_test(
