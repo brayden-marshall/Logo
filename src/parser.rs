@@ -37,6 +37,7 @@ pub enum ParseError {
     UnexpectedToken(Token),
     TypeError,
     ParseInteger(String),
+    MismatchParens,
 }
 
 #[derive(Debug, PartialEq)]
@@ -154,7 +155,7 @@ impl<'a> Parser<'a> {
     where
         T: Iterator<Item = &'a Token>,
     {
-        let mut operator_stack: Vec<Operator> = Vec::new();
+        let mut operator_stack: Vec<Token> = Vec::new();
         //let mut output: Vec<Expression> = vec![first];
         let mut output: Vec<Expression> = match first {
             Some(expr) => vec![expr],
@@ -167,6 +168,7 @@ impl<'a> Parser<'a> {
                     Token::Number { literal: _ } => (),
                     Token::Variable { name: _ } => (),
                     Token::Operator(_) => (),
+                    Token::LParen | Token::RParen => (),
                     _ => break,
                 },
                 None => break,
@@ -182,15 +184,57 @@ impl<'a> Parser<'a> {
                     }),
                     Token::Operator(op) => {
                         while !operator_stack.is_empty()
-                            && op.precedence()
-                                <= operator_stack[operator_stack.len() - 1].precedence()
+                            && op.precedence() <= match &operator_stack[operator_stack.len()-1] {
+                                Token::Operator(op) => op.precedence(),
+                                _ => 0,
+                            }
                         {
                             if let Some(popped) = operator_stack.pop() {
-                                output.push(Expression::Operator { op: popped });
+                                match popped {
+                                    Token::Operator(op) => output.push(Expression::Operator { op }),
+                                    _ => (),
+                                }
                             }
                         }
-                        operator_stack.push(op.clone());
+                        operator_stack.push(tok.clone());
                     }
+
+                    Token::LParen => operator_stack.push(Token::LParen),
+
+                    Token::RParen => {
+                        loop {
+                            if operator_stack.is_empty() {
+                                return Err(ParseError::MismatchParens);
+                            }
+
+                            match operator_stack[operator_stack.len() - 1] {
+                                Token::LParen => break,
+                                _ => match operator_stack.pop() {
+                                    Some(tok) => output.push(match tok {
+                                        Token::Number { literal } =>
+                                            Parser::parse_number(literal.to_string())?,
+
+                                        Token::Variable { name } =>
+                                            Expression::Variable { name: name.to_string() },
+
+                                        Token::Operator(op) =>
+                                            Expression::Operator { op },
+                                        
+                                        _ => return Err(ParseError::TypeError),
+                                    }),
+                                    _ => (),
+                                }
+                            }
+
+                            /*
+                            if !operator_stack.is_empty()
+                                && operator_stack[operator_stack.len()-1]
+                                == Token::LParen {
+                                operator_stack.pop();
+                            }
+                            */
+                        }
+                    },
                     _ => (),
                 }
             }
@@ -198,7 +242,9 @@ impl<'a> Parser<'a> {
 
         while !operator_stack.is_empty() {
             if let Some(popped) = operator_stack.pop() {
-                output.push(Expression::Operator { op: popped });
+                if let Token::Operator(op) = popped {
+                    output.push(Expression::Operator { op });
+                }
             }
         }
 
@@ -213,12 +259,21 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
+        
+        // if the next token is a left paren, parse an arithmetic expression
+        if let Some(tok) = self.tokens.peek() {
+            if let Token::LParen = tok {
+                return Parser::parse_arithmetic_expression(&mut self.tokens, None);
+            }
+        }
+
         let mut expr = match self.tokens.next() {
             Some(tok) => match tok {
                 Token::Number { literal } => Parser::parse_number(literal.to_string()),
                 Token::Variable { name } => Ok(Expression::Variable {
                     name: name.to_string(),
                 }),
+                //Token::LParen => Parser::parse_arithmetic_expression(&mut self.tokens, None),
                 _ => Err(ParseError::TypeError),
             },
             None => Err(ParseError::EOF),
@@ -518,6 +573,73 @@ mod tests {
                         op: Operator::Addition
                     },
                 ]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_arithmetic_with_paren_test() {
+        // (10 + 2) * 20
+        let input = vec![
+            Token::LParen,
+            Token::Number { literal: "10".to_string() },
+            Token::Operator(Operator::Addition),
+            Token::Number { literal: "2".to_string() },
+            Token::RParen,
+            Token::Operator(Operator::Multiplication),
+            Token::Number { literal: "20".to_string() },
+        ];
+
+        // expect: 10 2 + 20 *
+        assert_eq!(
+            Parser::parse_arithmetic_expression(&mut input.iter().peekable(), None).unwrap(),
+            Expression::ArithmeticExpression {
+                postfix: vec![
+                    Expression::Number { val: 10 },
+                    Expression::Number { val: 2 },
+                    Expression::Operator { op: Operator::Addition },
+                    Expression::Number { val: 20 },
+                    Expression::Operator { op: Operator::Multiplication },
+                ],
+            }
+        );
+
+        // ((2 + 7) * (5 * (3 / 1)))
+        let input = vec![
+            Token::LParen,
+            Token::LParen,
+            Token::Number { literal: "2".to_string() },
+            Token::Operator(Operator::Addition),
+            Token::Number { literal: "7".to_string() },
+            Token::RParen,
+            Token::Operator(Operator::Multiplication),
+            Token::LParen,
+            Token::Number { literal: "5".to_string() },
+            Token::Operator(Operator::Multiplication),
+            Token::LParen,
+            Token::Number { literal: "3".to_string() },
+            Token::Operator(Operator::Division),
+            Token::Number { literal: "1".to_string() },
+            Token::RParen,
+            Token::RParen,
+            Token::RParen,
+        ];
+
+        // expect: 2 7 + 5 3 1 / * *
+        assert_eq!(
+            Parser::parse_arithmetic_expression(&mut input.iter().peekable(), None).unwrap(),
+            Expression::ArithmeticExpression {
+                postfix: vec![
+                    Expression::Number { val: 2 },
+                    Expression::Number { val: 7 },
+                    Expression::Operator { op: Operator::Addition },
+                    Expression::Number { val: 5 },
+                    Expression::Number { val: 3 },
+                    Expression::Number { val: 1 },
+                    Expression::Operator { op: Operator::Division },
+                    Expression::Operator { op: Operator::Multiplication },
+                    Expression::Operator { op: Operator::Multiplication },
+                ],
             }
         );
     }

@@ -16,13 +16,11 @@ FORWARD 100 // yes
 FoRWard 100 // no
 ```
 
-- find good way to be able to implement (parse is the main issue) prefix functions on numbers i.e. `random 100 sqrt 64`
+- find good way to be able to implement (parse is the main issue) prefix functions on numbers i.e. `random 100 sqrt 64` [ the solution is probably to parse it as an arithmetic expression as soon as we hit a function ]
 
 - commands that take multiple arguments (setpencolor, etc.) should take an array as an argument? `setpencolor [255 123 123]`
 
 - currently the only data type supported is Number (Variables can only be Numbers as well)
-
-- arithmetic expressions do not support parentheses
 
 ## Supported Commands
 

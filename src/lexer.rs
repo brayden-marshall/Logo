@@ -80,8 +80,11 @@ pub enum Token {
 
     Repeat,
     Make,
+
     LBracket,
     RBracket,
+    LParen,
+    RParen,
 }
 
 struct TokenDefinition {
@@ -217,6 +220,14 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         TokenDefinition {
             token: Token::RBracket,
             regex: regex(r"^\]"),
+        },
+        TokenDefinition {
+            token: Token::LParen,
+            regex: regex(r"^\("),
+        },
+        TokenDefinition {
+            token: Token::RParen,
+            regex: regex(r"^\)"),
         },
         TokenDefinition {
             token: Token::Operator(Operator::Addition),
@@ -488,6 +499,19 @@ mod tests {
                 Token::Operator(Operator::Subtraction),
                 Token::Operator(Operator::Multiplication),
                 Token::Operator(Operator::Division),
+            ],
+        );
+    }
+
+    #[test]
+    fn lex_bracket_paren_test() {
+        lex_test(
+            "[ ] ( )",
+            vec![
+                Token::LBracket,
+                Token::RBracket,
+                Token::LParen,
+                Token::RParen,
             ],
         );
     }
