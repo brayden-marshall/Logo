@@ -11,11 +11,18 @@ pub enum Statement {
     },
     Repeat {
         count: usize,
-        body: Vec<Statement>,
+        body: AST,
     },
     VariableDeclaration {
         name: String,
         val: Box<Expression>,
+    },
+    Procedure {
+        name: String,
+        body: AST,
+    },
+    ProcedureCall {
+        name: String
     },
 }
 
@@ -40,7 +47,7 @@ pub enum ParseError {
     MismatchParens,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AST {
     pub statements: Vec<Statement>,
 }
@@ -78,6 +85,12 @@ impl<'a> Parser<'a> {
             Token::Repeat => self.parse_repeat(),
 
             Token::Make => self.parse_variable_declaration(),
+
+            Token::To => self.parse_procedure(),
+
+            Token::Identifier { literal } => Ok(Statement::ProcedureCall {
+                name: literal.to_string(),
+            }),
 
             _ => Err(ParseError::UnexpectedToken(token.clone())),
         }
@@ -131,7 +144,31 @@ impl<'a> Parser<'a> {
             }?);
         }
 
-        Ok(Statement::Repeat { count, body })
+        Ok(Statement::Repeat { count, body: AST { statements: body }})
+    }
+
+    fn parse_procedure(&mut self) -> Result<Statement, ParseError> {
+        let name = match self.tokens.next() {
+            Some(tok) => match tok {
+                Token::Identifier { literal } => Ok(literal.to_string()),
+                _ => Err(ParseError::UnexpectedToken(tok.clone())),
+            },
+            None => Err(ParseError::EOF),
+        }?;
+        
+        let mut body = AST::new();
+
+        loop {
+            body.statements.push(match self.tokens.next() {
+                Some(tok) => match tok {
+                    Token::End => break,
+                    _ => self.parse_statement(tok),
+                },
+                None => Err(ParseError::EOF),
+            }?);
+        }
+
+        Ok(Statement::Procedure { name, body } )
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Statement, ParseError> {
@@ -148,6 +185,9 @@ impl<'a> Parser<'a> {
         Ok(Statement::VariableDeclaration { name, val })
     }
 
+    /// Uses the shunting-yard algorithm for parsing arithmetic expressions.
+    /// Parses the expression into postfix notation and returns an
+    /// Expression::ArithmeticExpression
     fn parse_arithmetic_expression<T>(
         tokens: &mut Peekable<T>,
         first: Option<Expression>,
@@ -161,6 +201,7 @@ impl<'a> Parser<'a> {
             Some(expr) => vec![expr],
             None => vec![],
         };
+
         loop {
             // check that the next token is either a number or an operator
             match tokens.peek() {
@@ -208,7 +249,10 @@ impl<'a> Parser<'a> {
                             }
 
                             match operator_stack[operator_stack.len() - 1] {
-                                Token::LParen => break,
+                                Token::LParen => {
+                                    operator_stack.pop();
+                                    break;
+                                },
                                 _ => match operator_stack.pop() {
                                     Some(tok) => output.push(match tok {
                                         Token::Number { literal } =>
@@ -225,14 +269,6 @@ impl<'a> Parser<'a> {
                                     _ => (),
                                 }
                             }
-
-                            /*
-                            if !operator_stack.is_empty()
-                                && operator_stack[operator_stack.len()-1]
-                                == Token::LParen {
-                                operator_stack.pop();
-                            }
-                            */
                         }
                     },
                     _ => (),
@@ -413,10 +449,14 @@ mod tests {
             AST {
                 statements: vec![Statement::Repeat {
                     count: 10,
-                    body: vec![Statement::Command {
-                        command: Command::Forward,
-                        args: vec![Expression::Number { val: 50 }],
-                    }],
+                    body: AST {
+                        statements: vec![
+                            Statement::Command {
+                                command: Command::Forward,
+                                args: vec![Expression::Number { val: 50 }],
+                            },
+                        ],
+                    },
                 }],
             },
         );
@@ -451,19 +491,25 @@ mod tests {
             AST {
                 statements: vec![Statement::Repeat {
                     count: 10,
-                    body: vec![
-                        Statement::Command {
-                            command: Command::Forward,
-                            args: vec![Expression::Number { val: 50 }],
-                        },
-                        Statement::Repeat {
-                            count: 45,
-                            body: vec![Statement::Command {
-                                command: Command::Right,
-                                args: vec![Expression::Number { val: 1 }],
-                            }],
-                        },
-                    ],
+                    body: AST{
+                        statements: vec![
+                            Statement::Command {
+                                command: Command::Forward,
+                                args: vec![Expression::Number { val: 50 }],
+                            },
+                            Statement::Repeat {
+                                count: 45,
+                                body: AST {
+                                    statements: vec![
+                                        Statement::Command {
+                                            command: Command::Right,
+                                            args: vec![Expression::Number { val: 1 }],
+                                        }
+                                    ],
+                                }
+                            },
+                        ]
+                    },
                 }],
             },
         );
@@ -471,31 +517,6 @@ mod tests {
 
     #[test]
     fn parse_arithmetic_expression_test() {
-        // 10 + 7
-        let input = vec![
-            Token::Number {
-                literal: "10".to_string(),
-            },
-            Token::Operator(Operator::Addition),
-            Token::Number {
-                literal: "7".to_string(),
-            },
-        ];
-
-        assert_eq!(
-            Parser::parse_arithmetic_expression(&mut input.iter().peekable(), None).unwrap(),
-            Expression::ArithmeticExpression {
-                //postfix: "10 7 +".to_string(),
-                postfix: vec![
-                    Expression::Number { val: 10 },
-                    Expression::Number { val: 7 },
-                    Expression::Operator {
-                        op: Operator::Addition
-                    },
-                ],
-            },
-        );
-
         // 10 + 7 * 8 - 2
         let input = vec![
             Token::Number {
@@ -579,31 +600,6 @@ mod tests {
 
     #[test]
     fn parse_arithmetic_with_paren_test() {
-        // (10 + 2) * 20
-        let input = vec![
-            Token::LParen,
-            Token::Number { literal: "10".to_string() },
-            Token::Operator(Operator::Addition),
-            Token::Number { literal: "2".to_string() },
-            Token::RParen,
-            Token::Operator(Operator::Multiplication),
-            Token::Number { literal: "20".to_string() },
-        ];
-
-        // expect: 10 2 + 20 *
-        assert_eq!(
-            Parser::parse_arithmetic_expression(&mut input.iter().peekable(), None).unwrap(),
-            Expression::ArithmeticExpression {
-                postfix: vec![
-                    Expression::Number { val: 10 },
-                    Expression::Number { val: 2 },
-                    Expression::Operator { op: Operator::Addition },
-                    Expression::Number { val: 20 },
-                    Expression::Operator { op: Operator::Multiplication },
-                ],
-            }
-        );
-
         // ((2 + 7) * (5 * (3 / 1)))
         let input = vec![
             Token::LParen,
@@ -641,6 +637,67 @@ mod tests {
                     Expression::Operator { op: Operator::Multiplication },
                 ],
             }
+        );
+    }
+
+    #[test]
+    fn parse_procedure_test() {
+        /* to my_procedure
+         * forward 100
+         * repeat 10 [
+         *     right 45
+         * ]
+         * end
+         *
+        */
+        parse_test(
+            vec![
+                Token::To,
+                Token::Identifier { literal: "my_procedure".to_string() },
+                Token::Command(Command::Forward),
+                Token::Number { literal: "100".to_string() },
+                Token::Repeat,
+                Token::Number { literal: "10".to_string() },
+                Token::LBracket,
+                Token::Command(Command::Right),
+                Token::Number { literal: "45".to_string() },
+                Token::RBracket,
+                Token::End,
+            ],
+            AST {
+                statements: vec![
+                    Statement::Procedure {
+                        name: "my_procedure".to_string(),
+                        body: AST {
+                            statements: vec![
+                                Statement::Command {
+                                    command: Command::Forward,
+                                    args: vec![
+                                        Expression::Number {
+                                            val: 100
+                                        },
+                                    ],
+                                },
+                                Statement::Repeat {
+                                    count: 10,
+                                    body: AST {
+                                        statements: vec![
+                                            Statement::Command {
+                                                command: Command::Right,
+                                                args: vec![
+                                                    Expression::Number {
+                                                        val: 45,
+                                                    },
+                                                ],
+                                            }
+                                        ]
+                                    }
+                                },
+                            ],
+                        }
+                    }
+                ],
+            },
         );
     }
 }

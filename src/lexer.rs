@@ -77,9 +77,12 @@ pub enum Token {
     Number { literal: String },
     Word { literal: String },
     Variable { name: String },
+    Identifier { literal: String },
 
     Repeat,
     Make,
+    To,
+    End,
 
     LBracket,
     RBracket,
@@ -214,6 +217,14 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
             regex: regex(r"^make"),
         },
         TokenDefinition {
+            token: Token::To,
+            regex: regex(r"^to"),
+        },
+        TokenDefinition {
+            token: Token::End,
+            regex: regex(r"^end"),
+        },
+        TokenDefinition {
             token: Token::LBracket,
             regex: regex(r"^\["),
         },
@@ -244,6 +255,10 @@ fn get_token_definitions() -> Vec<TokenDefinition> {
         TokenDefinition {
             token: Token::Operator(Operator::Division),
             regex: regex(r"^/"),
+        },
+        TokenDefinition {
+            token: Token::Identifier { literal: "".to_string() },
+            regex: regex(r"^[a-zA-Z_][0-9a-zA-Z_]*"),
         },
     ]
 }
@@ -318,6 +333,11 @@ impl<'a> Iterator for Lexer<'a> {
                         name: String::from(
                             // index+1 to ignore the leading : character
                             &self.source[self.index + 1..self.index + m.end()],
+                        ),
+                    },
+                    Token::Identifier { literal: _ } => Token::Identifier {
+                        literal: String::from(
+                            &self.source[self.index..self.index + m.end()],
                         ),
                     },
                     _ => def.token.clone(),
@@ -567,6 +587,20 @@ mod tests {
                 Token::Number {
                     literal: String::from("130"),
                 },
+            ],
+        );
+    }
+
+    #[test]
+    fn lex_procedure_test() {
+        lex_test(
+            "to my_procedure forward 100 end",
+            vec![
+                Token::To,
+                Token::Identifier { literal: "my_procedure".to_string() },
+                Token::Command(Command::Forward),
+                Token::Number { literal: "100".to_string() },
+                Token::End,
             ],
         );
     }

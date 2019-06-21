@@ -1,0 +1,19 @@
+to square
+repeat 4 [
+    forward 40
+    right 90
+]
+end
+
+to main
+make "angle 0
+repeat 6 [
+    home
+    rt :angle
+    fd 100
+    square
+    make "angle :angle + 60
+]
+end
+
+main

@@ -34,21 +34,28 @@ fn main() {
     let mut t = Turtle::new();
     let debug: bool = matches.is_present("debug");
     let mut vars: HashMap<String, Expression> = HashMap::new();
+    let mut procedures: HashMap<String, AST> = HashMap::new();
 
     // if a script argument was passed, run the script
     if let Some(file) = matches.value_of("SCRIPT") {
-        run_program(&mut t, &fs::read_to_string(file).unwrap(), debug, &mut vars);
+        run_program(&mut t, &fs::read_to_string(file).unwrap(), debug, &mut vars, &mut procedures);
     }
 
     // running interactive shell
     loop {
         let input = get_input();
 
-        run_program(&mut t, &input, debug, &mut vars);
+        run_program(&mut t, &input, debug, &mut vars, &mut procedures);
     }
 }
 
-fn run_program(t: &mut Turtle, input: &str, debug: bool, vars: &mut HashMap<String, Expression>) {
+fn run_program(
+    t: &mut Turtle,
+    input: &str,
+    debug: bool,
+    vars: &mut HashMap<String, Expression>,
+    procedures: &mut HashMap<String, AST>,
+) {
     // lexing input and returning vector of tokens
     let mut lexer = Lexer::new(&input);
     let mut tokens: Vec<Token> = Vec::new();
@@ -63,6 +70,7 @@ fn run_program(t: &mut Turtle, input: &str, debug: bool, vars: &mut HashMap<Stri
     }
 
     if debug {
+        println!("Lexing phase completed without error");
         println!("{:?}", tokens);
     }
 
@@ -73,20 +81,116 @@ fn run_program(t: &mut Turtle, input: &str, debug: bool, vars: &mut HashMap<Stri
     match parser.build_ast() {
         Ok(ast) => {
             if debug {
+                println!("Parsing phase completed without error");
                 println!("{:?}", ast);
             }
-            run_ast(t, &ast, vars);
+            run_ast(t, &ast, vars, procedures);
         }
         Err(e) => eprintln!("{:?}", e),
     }
 }
 
-fn run_ast(t: &mut Turtle, ast: &AST, vars: &mut HashMap<String, Expression>) {
+fn run_ast(
+    t: &mut Turtle,
+    ast: &AST,
+    vars: &mut HashMap<String, Expression>,
+    procedures: &mut HashMap<String, AST>,
+) {
     for stmt in ast.statements.iter() {
-        if let Err(e) = run_statement(t, stmt, vars) {
+        if let Err(e) = run_statement(t, stmt, vars, procedures) {
             eprintln!("{:?}", e);
         }
     }
+}
+
+fn run_statement(
+    t: &mut Turtle,
+    stmt: &Statement,
+    vars: &mut HashMap<String, Expression>,
+    procedures: &mut HashMap<String, AST>,
+) -> Result<(), String> {
+    // currently does not handle varying argument types,
+    // only accept LOGO number values as command arguments
+    match stmt {
+        Statement::Procedure { name, body } => {
+            if let Some(_) = procedures.get(name) {
+                return Err(format!("Procedure with name {} already exists.", name));
+            }
+
+            procedures.insert(name.to_string(), body.clone());
+        }
+
+        Statement::ProcedureCall { name } => {
+            let ast = match procedures.get(name) {
+                Some(ast) => ast.clone(),
+                None => return Err("Undeclared procedure name.".to_string()),
+            };
+
+            run_ast(t, &ast, vars, procedures);
+        },
+
+        Statement::VariableDeclaration { name, val } => {
+            let _val = (**val).clone();
+            let expr = Expression::Number {
+                val: evaluate_expression(&_val, vars)?,
+            };
+
+            vars.insert(name.to_string(), expr);
+        }
+
+        Statement::Command {
+            command,
+            args: _args,
+        } => {
+            let mut args: Vec<f64> = Vec::new();
+            for arg in _args.iter() {
+                args.push(evaluate_expression(arg, vars)? as f64);
+            }
+
+            match command {
+                // 0 arity
+                Command::PenUp => t.pen_up(),
+                Command::PenDown => t.pen_down(),
+                Command::HideTurtle => t.hide(),
+                Command::ShowTurtle => t.show(),
+                Command::Home => t.home(),
+                Command::ClearScreen => {
+                    t.clear();
+                    t.home()
+                }
+                Command::Clean => t.clear(),
+                Command::Fill => return Err(String::from("Fill not yet implemented")),
+                Command::Exit => std::process::exit(0),
+
+                // 1 arity
+                Command::Forward => t.forward(args[0]),
+                Command::Backward => t.backward(args[0]),
+                Command::Left => t.left(args[0]),
+                Command::Right => t.right(args[0]),
+                Command::SetPenSize => t.set_pen_size(args[0]),
+                Command::SetHeading => t.set_heading(args[0]),
+                Command::Show => println!("{}", args[0]),
+
+                // 2 arity
+                Command::SetXY => t.go_to([args[0], args[1]]),
+
+                // 3 arity
+                Command::SetPenColor => t.set_pen_color([args[0], args[1], args[2]]),
+                Command::SetFillColor => t.set_fill_color([args[0], args[1], args[2]]),
+                Command::SetScreenColor => t
+                    .drawing_mut()
+                    .set_background_color([args[0], args[1], args[2]]),
+            }
+        }
+
+        Statement::Repeat { count, body } => {
+            for _ in 0..*count {
+                run_ast(t, body, vars, procedures);
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn evaluate_expression(
@@ -144,80 +248,6 @@ fn evaluate_postfix(
     Ok(stack[0])
 }
 
-fn run_statement(
-    t: &mut Turtle,
-    stmt: &Statement,
-    vars: &mut HashMap<String, Expression>,
-) -> Result<(), String> {
-    // currently does not handle varying argument types,
-    // only accept LOGO number values as command arguments
-    match stmt {
-        Statement::VariableDeclaration { name, val } => {
-            let _val = (**val).clone();
-            let expr = Expression::Number {
-                val: evaluate_expression(&_val, vars)?,
-            };
-
-            vars.insert(name.to_string(), expr);
-        }
-
-        Statement::Command {
-            command,
-            args: _args,
-        } => {
-            let mut args: Vec<f64> = Vec::new();
-            for arg in _args.iter() {
-                args.push(evaluate_expression(arg, vars)? as f64);
-            }
-
-            match command {
-                // 0 arity
-                Command::PenUp => t.pen_up(),
-                Command::PenDown => t.pen_down(),
-                Command::HideTurtle => t.hide(),
-                Command::ShowTurtle => t.show(),
-                Command::Home => t.home(),
-                Command::ClearScreen => {
-                    t.clear();
-                    t.home()
-                }
-                Command::Clean => t.clear(),
-                Command::Fill => return Err(String::from("Fill not yet implemented")),
-                Command::Exit => std::process::exit(0),
-
-                // 1 arity
-                Command::Forward => t.forward(args[0]),
-                Command::Backward => t.backward(args[0]),
-                Command::Left => t.left(args[0]),
-                Command::Right => t.right(args[0]),
-                Command::SetPenSize => t.set_pen_size(args[0]),
-                Command::SetHeading => t.set_heading(args[0]),
-                Command::Show => println!("{}", args[0]),
-
-                // 2 arity
-                Command::SetXY => t.go_to([args[0], args[1]]),
-
-                // 3 arity
-                Command::SetPenColor => t.set_pen_color([args[0], args[1], args[2]]),
-                Command::SetFillColor => t.set_fill_color([args[0], args[1], args[2]]),
-                Command::SetScreenColor => t
-                    .drawing_mut()
-                    .set_background_color([args[0], args[1], args[2]]),
-            }
-        }
-
-        Statement::Repeat { count, body } => {
-            for _ in 0..*count {
-                for body_statement in body.iter() {
-                    if let Err(e) = run_statement(t, body_statement, vars) {
-                        eprintln!("{:?}", e);
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
 
 fn get_input() -> String {
     print!(">> ");
