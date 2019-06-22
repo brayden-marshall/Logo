@@ -1,6 +1,7 @@
 use regex::Regex;
 #[allow(unused_imports)]
 use std::iter::FromIterator;
+use std::default::Default;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operator {
@@ -57,8 +58,8 @@ impl Command {
         use Command::*;
 
         match self {
-            Exit | ClearScreen | Clean | PenUp | PenDown | HideTurtle | ShowTurtle | Home
-            | Fill => 0,
+            Exit | ClearScreen | Clean | PenUp | PenDown | HideTurtle
+            | ShowTurtle | Home | Fill => 0,
 
             Forward | Backward | Left | Right | SetPenSize | Show | SetHeading => 1,
 
@@ -90,9 +91,18 @@ pub enum Token {
     RParen,
 }
 
-struct TokenDefinition {
+struct TokenDef {
     token: Token,
     regex: Regex,
+}
+
+impl TokenDef {
+    fn new(token: Token, _regex: &str) -> Self {
+        TokenDef {
+            token,
+            regex: regex(_regex),
+        }
+    }
 }
 
 const NUMBER_REGEX: &str = r"^-?[0-9]+";
@@ -106,160 +116,46 @@ fn regex(input: &str) -> Regex {
 // returns a vector of the definition of every language token
 // a token definition consists of it's enumerated type and
 // it's regular expression used for parsing
-fn get_token_definitions() -> Vec<TokenDefinition> {
+fn get_token_definitions() -> Vec<TokenDef> {
     vec![
-        TokenDefinition {
-            token: Token::Number {
-                literal: String::from(""),
-            },
-            regex: regex(NUMBER_REGEX),
-        },
-        TokenDefinition {
-            token: Token::Word {
-                literal: String::from(""),
-            },
-            regex: regex(WORD_REGEX),
-        },
-        TokenDefinition {
-            token: Token::Variable {
-                name: String::from(""),
-            },
-            regex: regex(VARIABLE_REGEX),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Forward),
-            regex: regex(r"^(fd|forward)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Backward),
-            regex: regex(r"^(bk|backward)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Left),
-            regex: regex(r"^(lt|left)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Right),
-            regex: regex(r"^(rt|right)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Exit),
-            regex: regex(r"^exit"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::ClearScreen),
-            regex: regex(r"^(cs|clearscreen)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Clean),
-            regex: regex(r"^clean"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::PenUp),
-            regex: regex(r"^(pu|penup)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::PenDown),
-            regex: regex(r"^(pd|pendown)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::HideTurtle),
-            regex: regex(r"^(ht|hideturtle)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::ShowTurtle),
-            regex: regex(r"^(st|showturtle)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Home),
-            regex: regex(r"^home"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::SetXY),
-            regex: regex(r"^setxy"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::SetPenSize),
-            regex: regex(r"^(setps|setpensize)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::SetPenColor),
-            regex: regex(r"^(setpc|setpencolor)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::SetFillColor),
-            regex: regex(r"^(setfc|setfillcolor)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::SetScreenColor),
-            // order of two strings between | must stay this way
-            // if switched, full name will not be properly detected
-            regex: regex(r"^(setscreencolor|setsc)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::SetHeading),
-            regex: regex(r"^(setheading|seth)"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Fill),
-            regex: regex(r"^fill"),
-        },
-        TokenDefinition {
-            token: Token::Command(Command::Show),
-            regex: regex(r"^show"),
-        },
-        TokenDefinition {
-            token: Token::Repeat,
-            regex: regex(r"^repeat"),
-        },
-        TokenDefinition {
-            token: Token::Make,
-            regex: regex(r"^make"),
-        },
-        TokenDefinition {
-            token: Token::To,
-            regex: regex(r"^to"),
-        },
-        TokenDefinition {
-            token: Token::End,
-            regex: regex(r"^end"),
-        },
-        TokenDefinition {
-            token: Token::LBracket,
-            regex: regex(r"^\["),
-        },
-        TokenDefinition {
-            token: Token::RBracket,
-            regex: regex(r"^\]"),
-        },
-        TokenDefinition {
-            token: Token::LParen,
-            regex: regex(r"^\("),
-        },
-        TokenDefinition {
-            token: Token::RParen,
-            regex: regex(r"^\)"),
-        },
-        TokenDefinition {
-            token: Token::Operator(Operator::Addition),
-            regex: regex(r"^\+"),
-        },
-        TokenDefinition {
-            token: Token::Operator(Operator::Subtraction),
-            regex: regex(r"^-"),
-        },
-        TokenDefinition {
-            token: Token::Operator(Operator::Multiplication),
-            regex: regex(r"^\*"),
-        },
-        TokenDefinition {
-            token: Token::Operator(Operator::Division),
-            regex: regex(r"^/"),
-        },
-        TokenDefinition {
-            token: Token::Identifier { literal: "".to_string() },
-            regex: regex(r"^[a-zA-Z_][0-9a-zA-Z_]*"),
-        },
+        TokenDef::new(Token::Number { literal: Default::default() }, NUMBER_REGEX),
+        TokenDef::new(Token::Word { literal: Default::default() }, WORD_REGEX),
+        TokenDef::new(Token::Variable { name: Default::default() }, VARIABLE_REGEX),
+        TokenDef::new(Token::Command(Command::Forward), r"^(fd|forward)"),
+        TokenDef::new(Token::Command(Command::Backward), r"^(bk|backward)"),
+        TokenDef::new(Token::Command(Command::Left), r"^(lt|left)"),
+        TokenDef::new(Token::Command(Command::Right), r"^(rt|right)"),
+        TokenDef::new(Token::Command(Command::Exit), r"^exit"),
+        TokenDef::new(Token::Command(Command::ClearScreen), r"^(cs|clearscreen)"),
+        TokenDef::new(Token::Command(Command::Clean), r"^clean"),
+        TokenDef::new(Token::Command(Command::PenUp), r"^(pu|penup)"),
+        TokenDef::new(Token::Command(Command::PenDown), r"^(pd|pendown)"),
+        TokenDef::new(Token::Command(Command::HideTurtle), r"^(ht|hideturtle)"),
+        TokenDef::new(Token::Command(Command::ShowTurtle), r"^(st|showturtle)"),
+        TokenDef::new(Token::Command(Command::Home), r"^home"),
+        TokenDef::new(Token::Command(Command::SetXY), r"^setxy"),
+        TokenDef::new(Token::Command(Command::SetPenSize), r"^(setps|setpensize)"),
+        TokenDef::new(Token::Command(Command::SetPenColor), r"^(setpc|setpencolor)"),
+        TokenDef::new(Token::Command(Command::SetFillColor), r"^(setfc|setfillcolor)"),
+        // for setscreencolor: order of two strings between | must stay this way
+        // if switched, full name will not be properly detected
+        TokenDef::new(Token::Command(Command::SetScreenColor), r"^(setscreencolor|setsc)"),
+        TokenDef::new(Token::Command(Command::SetHeading), r"^(setheading|seth)"),
+        TokenDef::new(Token::Command(Command::Fill), r"^fill"),
+        TokenDef::new(Token::Command(Command::Show), r"^show"),
+        TokenDef::new(Token::Repeat, r"^repeat"),
+        TokenDef::new(Token::Make, r"^make"),
+        TokenDef::new(Token::To, r"^to"),
+        TokenDef::new(Token::End, r"^end"),
+        TokenDef::new(Token::LBracket, r"^\["),
+        TokenDef::new(Token::RBracket, r"^\]"),
+        TokenDef::new(Token::LParen, r"^\("),
+        TokenDef::new(Token::RParen, r"^\)"),
+        TokenDef::new(Token::Operator(Operator::Addition), r"^\+"),
+        TokenDef::new(Token::Operator(Operator::Subtraction), r"^-"),
+        TokenDef::new(Token::Operator(Operator::Multiplication), r"^\*"),
+        TokenDef::new(Token::Operator(Operator::Division), r"^/"),
+        TokenDef::new(Token::Identifier { literal: "".to_string() }, r"^[a-zA-Z_][0-9a-zA-Z_]*"),
     ]
 }
 
@@ -276,7 +172,8 @@ type LexResult = Result<Token, LexError>;
 pub struct Lexer<'a> {
     source: &'a str,
     index: usize,
-    token_definitions: Vec<TokenDefinition>,
+    token_definitions: Vec<TokenDef>,
+    whitespace_regex: Regex,
 }
 
 impl<'a> Lexer<'a> {
@@ -285,22 +182,14 @@ impl<'a> Lexer<'a> {
             source,
             index: 0,
             token_definitions: get_token_definitions(),
+            whitespace_regex: regex(r"^[\n\t\x20]*"),
         }
     }
 
     // increasing internal index to the first non-whitespace character
     fn skip_whitespace(&mut self) {
-        let whitespace_chars = ["\t", "\n", "\x20"];
-        let mut whitespace_found = true;
-        while whitespace_found {
-            whitespace_found = false;
-            for chr in whitespace_chars.iter() {
-                if self.source[self.index..].starts_with(chr) {
-                    whitespace_found = true;
-                    self.index += 1;
-                    break;
-                }
-            }
+        if let Some(m) = self.whitespace_regex.find(&self.source[self.index..]) {
+            self.index += m.end();
         }
     }
 }

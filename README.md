@@ -9,13 +9,6 @@
     - implement Display on errory types instead of using Debug
     - as much information as possible in messages
 
-- (do some research if this is the way it should be or not) allow for either CAPS or lowercase for commands, but not mixed i.e.
-```
-forward 100 // yes
-FORWARD 100 // yes
-FoRWard 100 // no
-```
-
 - find good way to be able to implement (parse is the main issue) prefix functions on numbers i.e. `random 100 sqrt 64` [ the solution is probably to parse it as an arithmetic expression as soon as we hit a function ]
 
 - commands that take multiple arguments (setpencolor, etc.) should take an array as an argument? `setpencolor [255 123 123]`
@@ -52,18 +45,7 @@ make "angle_1 45
 fd 10 rt :angle_1
 ```
 
-- Arithmetic operations on numbers: `fd 100 + 70 bk 7 * :var - 12`
-
-- Exit (added for convenience): `exit`
-
-## Things to implement 
-### Small-scale
-- Fill (fill enclosed shape, fill is not currently implemented in the `turtle` library, so this may be tricky): `fill`
-- Label: `label "something`
-- Random (1 argument is max number): `forward random 100`
-
-### Large-scale
-- Procedures: 
+- Procedures (parameters not yet supported):
 ```logo
 to draw_circle
 repeat 360 [
@@ -74,5 +56,18 @@ end
 
 draw_circle
 ```
+
+- Arithmetic operations on numbers: `fd 100 + 70 bk 7 * :var - 12`
+
+- Exit (added for convenience): `exit`
+
+## Things to implement 
+### Small-scale
+- Comments: `; this is a comment`
+- Fill (fill enclosed shape, fill is not currently implemented in the `turtle` library, so this may be tricky): `fill`
+- Label: `label "something`
+- Random (1 argument is max number): `forward random 100`
+
+### Large-scale
 
 - Control Flow (if, if-else) (need to also implement boolean type)
