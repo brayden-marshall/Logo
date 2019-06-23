@@ -23,56 +23,7 @@ impl Operator {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Command {
-    // 0 arity
-    PenUp,
-    PenDown,
-    HideTurtle,
-    ShowTurtle,
-    Home,
-    ClearScreen,
-    Clean,
-    Fill,
-    Exit,
-
-    // 1 arity
-    Forward,
-    Backward,
-    Left,
-    Right,
-    SetPenSize,
-    SetHeading,
-    Show,
-
-    // 2 arity
-    SetXY,
-
-    // 3 arity
-    SetPenColor,
-    SetScreenColor,
-    SetFillColor,
-}
-
-impl Command {
-    pub fn arity(&self) -> usize {
-        use Command::*;
-
-        match self {
-            Exit | ClearScreen | Clean | PenUp | PenDown | HideTurtle
-            | ShowTurtle | Home | Fill => 0,
-
-            Forward | Backward | Left | Right | SetPenSize | Show | SetHeading => 1,
-
-            SetXY => 2,
-
-            SetPenColor | SetScreenColor | SetFillColor => 3,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    Command(Command),
     Operator(Operator),
 
     Number { literal: String },
@@ -106,8 +57,8 @@ impl TokenDef {
 }
 
 const NUMBER_REGEX: &str = r"^-?[0-9]+";
-const WORD_REGEX: &str = r#"^"[a-zA-Z_][0-9a-zA-Z_]*"#;
-const VARIABLE_REGEX: &str = r"^:[a-zA-Z_][0-9a-zA-Z_]*";
+const WORD_REGEX: &str = r#"^"[a-zA-Z][0-9a-zA-Z_]*"#;
+const VARIABLE_REGEX: &str = r"^:[a-zA-Z][0-9a-zA-Z_]*";
 
 fn regex(input: &str) -> Regex {
     Regex::new(input).unwrap()
@@ -118,44 +69,26 @@ fn regex(input: &str) -> Regex {
 // it's regular expression used for parsing
 fn get_token_definitions() -> Vec<TokenDef> {
     vec![
-        TokenDef::new(Token::Number { literal: Default::default() }, NUMBER_REGEX),
-        TokenDef::new(Token::Word { literal: Default::default() }, WORD_REGEX),
-        TokenDef::new(Token::Variable { name: Default::default() }, VARIABLE_REGEX),
-        TokenDef::new(Token::Command(Command::Forward), r"^(fd|forward)"),
-        TokenDef::new(Token::Command(Command::Backward), r"^(bk|backward)"),
-        TokenDef::new(Token::Command(Command::Left), r"^(lt|left)"),
-        TokenDef::new(Token::Command(Command::Right), r"^(rt|right)"),
-        TokenDef::new(Token::Command(Command::Exit), r"^exit"),
-        TokenDef::new(Token::Command(Command::ClearScreen), r"^(cs|clearscreen)"),
-        TokenDef::new(Token::Command(Command::Clean), r"^clean"),
-        TokenDef::new(Token::Command(Command::PenUp), r"^(pu|penup)"),
-        TokenDef::new(Token::Command(Command::PenDown), r"^(pd|pendown)"),
-        TokenDef::new(Token::Command(Command::HideTurtle), r"^(ht|hideturtle)"),
-        TokenDef::new(Token::Command(Command::ShowTurtle), r"^(st|showturtle)"),
-        TokenDef::new(Token::Command(Command::Home), r"^home"),
-        TokenDef::new(Token::Command(Command::SetXY), r"^setxy"),
-        TokenDef::new(Token::Command(Command::SetPenSize), r"^(setps|setpensize)"),
-        TokenDef::new(Token::Command(Command::SetPenColor), r"^(setpc|setpencolor)"),
-        TokenDef::new(Token::Command(Command::SetFillColor), r"^(setfc|setfillcolor)"),
-        // for setscreencolor: order of two strings between | must stay this way
-        // if switched, full name will not be properly detected
-        TokenDef::new(Token::Command(Command::SetScreenColor), r"^(setscreencolor|setsc)"),
-        TokenDef::new(Token::Command(Command::SetHeading), r"^(setheading|seth)"),
-        TokenDef::new(Token::Command(Command::Fill), r"^fill"),
-        TokenDef::new(Token::Command(Command::Show), r"^show"),
+        // keywords
         TokenDef::new(Token::Repeat, r"^repeat"),
         TokenDef::new(Token::Make, r"^make"),
         TokenDef::new(Token::To, r"^to"),
         TokenDef::new(Token::End, r"^end"),
+        // main tokens
+        TokenDef::new(Token::Number { literal: Default::default() }, NUMBER_REGEX),
+        TokenDef::new(Token::Word { literal: Default::default() }, WORD_REGEX),
+        TokenDef::new(Token::Variable { name: Default::default() }, VARIABLE_REGEX),
+        TokenDef::new(Token::Identifier { literal: "".to_string() }, r"^[a-zA-Z][0-9a-zA-Z_]*"),
+        // bracket characters
         TokenDef::new(Token::LBracket, r"^\["),
         TokenDef::new(Token::RBracket, r"^\]"),
         TokenDef::new(Token::LParen, r"^\("),
         TokenDef::new(Token::RParen, r"^\)"),
+        // operators
         TokenDef::new(Token::Operator(Operator::Addition), r"^\+"),
         TokenDef::new(Token::Operator(Operator::Subtraction), r"^-"),
         TokenDef::new(Token::Operator(Operator::Multiplication), r"^\*"),
         TokenDef::new(Token::Operator(Operator::Division), r"^/"),
-        TokenDef::new(Token::Identifier { literal: "".to_string() }, r"^[a-zA-Z_][0-9a-zA-Z_]*"),
     ]
 }
 
@@ -345,60 +278,6 @@ mod tests {
         );
     }
 
-    macro_rules! commands {
-        ($($i:ident),+) => {
-            vec![$(Token::Command(Command::$i)),+]
-        }
-    }
-
-    #[test]
-    fn lex_command_test() {
-        lex_test(
-            "pu      penup pd pendown ht hideturtle st showturtle
-            cs clearscreen home exit
-            fd forward bk backward lt left rt right setxy clean
-            setps setpensize setpc setpencolor setfc setfillcolor
-            setsc setscreencolor fill show seth setheading
-            ",
-            commands!(
-                PenUp,
-                PenUp,
-                PenDown,
-                PenDown,
-                HideTurtle,
-                HideTurtle,
-                ShowTurtle,
-                ShowTurtle,
-                ClearScreen,
-                ClearScreen,
-                Home,
-                Exit,
-                Forward,
-                Forward,
-                Backward,
-                Backward,
-                Left,
-                Left,
-                Right,
-                Right,
-                SetXY,
-                Clean,
-                SetPenSize,
-                SetPenSize,
-                SetPenColor,
-                SetPenColor,
-                SetFillColor,
-                SetFillColor,
-                SetScreenColor,
-                SetScreenColor,
-                Fill,
-                Show,
-                SetHeading,
-                SetHeading
-            ),
-        );
-    }
-
     #[test]
     fn lex_operator_test() {
         lex_test(
@@ -435,31 +314,11 @@ mod tests {
                     literal: String::from("7"),
                 },
                 Token::LBracket,
-                Token::Command(Command::Forward),
+                Token::Identifier { literal: "forward".to_string() },
                 Token::Number {
                     literal: String::from("100"),
                 },
                 Token::RBracket,
-            ],
-        );
-    }
-
-    // this test was added because there was a bug with setscreencolor command
-    #[test]
-    fn lex_set_screen_color_test() {
-        lex_test(
-            "setscreencolor 100 100 100",
-            vec![
-                Token::Command(Command::SetScreenColor),
-                Token::Number {
-                    literal: String::from("100"),
-                },
-                Token::Number {
-                    literal: String::from("100"),
-                },
-                Token::Number {
-                    literal: String::from("100"),
-                },
             ],
         );
     }
@@ -487,7 +346,7 @@ mod tests {
             vec![
                 Token::To,
                 Token::Identifier { literal: "my_procedure".to_string() },
-                Token::Command(Command::Forward),
+                Token::Identifier { literal: "forward".to_string() },
                 Token::Number { literal: "100".to_string() },
                 Token::End,
             ],

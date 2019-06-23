@@ -1,14 +1,10 @@
-use crate::lexer::{Command, Operator, Token};
+use crate::lexer::{Operator, Token};
 use std::iter::Peekable;
 use std::slice;
 
 /// Statements are any logo 'sentence' that does not evaluate to a value
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    Command {
-        command: Command,
-        args: Vec<Expression>,
-    },
     Repeat {
         count: usize,
         body: AST,
@@ -17,12 +13,13 @@ pub enum Statement {
         name: String,
         val: Box<Expression>,
     },
-    Procedure {
+    ProcedureDeclaration {
         name: String,
         body: AST,
     },
     ProcedureCall {
-        name: String
+        name: String,
+        args: Vec<Expression>,
     },
 }
 
@@ -80,23 +77,33 @@ impl<'a> Parser<'a> {
 
     fn parse_statement(&mut self, token: &Token) -> Result<Statement, ParseError> {
         match token {
-            Token::Command(command) => self.parse_command(command.clone()),
-
             Token::Repeat => self.parse_repeat(),
 
             Token::Make => self.parse_variable_declaration(),
 
-            Token::To => self.parse_procedure(),
+            Token::To => self.parse_procedure_declaration(),
 
-            Token::Identifier { literal } => Ok(Statement::ProcedureCall {
-                name: literal.to_string(),
-            }),
+            Token::Identifier { literal } => self.parse_procedure_call(literal),
 
             _ => Err(ParseError::UnexpectedToken(token.clone())),
         }
     }
 
-    // takes a command
+    fn parse_procedure_call(&mut self, name: &str) -> Result<Statement, ParseError> {
+        let mut args: Vec<Expression> = Vec::new();
+
+        while let Some(tok) = self.tokens.peek() {
+            match tok {
+                Token::Variable { name: _ } | Token::Number { literal: _ } =>
+                    args.push(self.parse_expression()?),
+                _ => break,
+            }
+        }
+
+        Ok(Statement::ProcedureCall { name: name.to_string(), args })
+    }
+
+    /*
     fn parse_command(&mut self, command: Command) -> Result<Statement, ParseError> {
         let mut args: Vec<Expression> = Vec::new();
 
@@ -108,6 +115,7 @@ impl<'a> Parser<'a> {
 
         Ok(Statement::Command { command, args })
     }
+    */
 
     fn parse_repeat(&mut self) -> Result<Statement, ParseError> {
         let mut body: Vec<Statement> = Vec::new();
@@ -147,7 +155,7 @@ impl<'a> Parser<'a> {
         Ok(Statement::Repeat { count, body: AST { statements: body }})
     }
 
-    fn parse_procedure(&mut self) -> Result<Statement, ParseError> {
+    fn parse_procedure_declaration(&mut self) -> Result<Statement, ParseError> {
         let name = match self.tokens.next() {
             Some(tok) => match tok {
                 Token::Identifier { literal } => Ok(literal.to_string()),
@@ -168,7 +176,7 @@ impl<'a> Parser<'a> {
             }?);
         }
 
-        Ok(Statement::Procedure { name, body } )
+        Ok(Statement::ProcedureDeclaration { name, body } )
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Statement, ParseError> {
@@ -339,14 +347,14 @@ mod tests {
     fn parse_short_command_test() {
         parse_test(
             vec![
-                Token::Command(Command::Forward),
+                Token::Identifier { literal: "forward".to_string() },
                 Token::Number {
                     literal: String::from("70"),
                 },
             ],
             AST {
-                statements: vec![Statement::Command {
-                    command: Command::Forward,
+                statements: vec![Statement::ProcedureCall {
+                    name: "forward".to_string(),
                     args: vec![Expression::Number { val: 70 }],
                 }],
             },
@@ -354,35 +362,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn parse_not_enough_arguments_test() {
-        Parser::new(&vec![Token::Command(Command::Forward)])
-            .build_ast()
-            .unwrap();
-    }
-
-    #[test]
-    #[should_panic]
-    fn parse_too_many_arguments_test() {
-        // too many arguments for command forward "fd 100 101"
-        Parser::new(&vec![
-            Token::Command(Command::Forward),
-            Token::Number {
-                literal: String::from("100"),
-            },
-            Token::Number {
-                literal: String::from("101"),
-            },
-        ])
-        .build_ast()
-        .unwrap();
-    }
-
-    #[test]
     fn parse_two_argument_command_test() {
         parse_test(
             vec![
-                Token::Command(Command::SetXY),
+                Token::Identifier { literal: "setxy".to_string() },
                 Token::Number {
                     literal: String::from("-60"),
                 },
@@ -391,8 +374,8 @@ mod tests {
                 },
             ],
             AST {
-                statements: vec![Statement::Command {
-                    command: Command::SetXY,
+                statements: vec![Statement::ProcedureCall {
+                    name: "setxy".to_string(),
                     args: vec![
                         Expression::Number { val: -60 },
                         Expression::Number { val: 60 },
@@ -406,7 +389,7 @@ mod tests {
     fn parse_variable_argument_command_test() {
         parse_test(
             vec![
-                Token::Command(Command::SetXY),
+                Token::Identifier { literal: "setxy".to_string() },
                 Token::Variable {
                     name: String::from("x"),
                 },
@@ -415,8 +398,8 @@ mod tests {
                 },
             ],
             AST {
-                statements: vec![Statement::Command {
-                    command: Command::SetXY,
+                statements: vec![Statement::ProcedureCall {
+                    name: "setxy".to_string(),
                     args: vec![
                         Expression::Variable {
                             name: String::from("x"),
@@ -440,7 +423,7 @@ mod tests {
                     literal: String::from("10"),
                 },
                 Token::LBracket,
-                Token::Command(Command::Forward),
+                Token::Identifier { literal: "forward".to_string() },
                 Token::Number {
                     literal: String::from("50"),
                 },
@@ -451,8 +434,8 @@ mod tests {
                     count: 10,
                     body: AST {
                         statements: vec![
-                            Statement::Command {
-                                command: Command::Forward,
+                            Statement::ProcedureCall {
+                                name: "forward".to_string(),
                                 args: vec![Expression::Number { val: 50 }],
                             },
                         ],
@@ -472,7 +455,7 @@ mod tests {
                     literal: String::from("10"),
                 },
                 Token::LBracket,
-                Token::Command(Command::Forward),
+                Token::Identifier { literal: "forward".to_string() },
                 Token::Number {
                     literal: String::from("50"),
                 },
@@ -481,7 +464,7 @@ mod tests {
                     literal: String::from("45"),
                 },
                 Token::LBracket,
-                Token::Command(Command::Right),
+                Token::Identifier { literal: "right".to_string() },
                 Token::Number {
                     literal: String::from("1"),
                 },
@@ -493,16 +476,16 @@ mod tests {
                     count: 10,
                     body: AST{
                         statements: vec![
-                            Statement::Command {
-                                command: Command::Forward,
+                            Statement::ProcedureCall {
+                                name: "forward".to_string(),
                                 args: vec![Expression::Number { val: 50 }],
                             },
                             Statement::Repeat {
                                 count: 45,
                                 body: AST {
                                     statements: vec![
-                                        Statement::Command {
-                                            command: Command::Right,
+                                        Statement::ProcedureCall {
+                                            name: "right".to_string(),
                                             args: vec![Expression::Number { val: 1 }],
                                         }
                                     ],
@@ -654,24 +637,24 @@ mod tests {
             vec![
                 Token::To,
                 Token::Identifier { literal: "my_procedure".to_string() },
-                Token::Command(Command::Forward),
+                Token::Identifier{ literal: "forward".to_string() },
                 Token::Number { literal: "100".to_string() },
                 Token::Repeat,
                 Token::Number { literal: "10".to_string() },
                 Token::LBracket,
-                Token::Command(Command::Right),
+                Token::Identifier { literal: "right".to_string() },
                 Token::Number { literal: "45".to_string() },
                 Token::RBracket,
                 Token::End,
             ],
             AST {
                 statements: vec![
-                    Statement::Procedure {
+                    Statement::ProcedureDeclaration {
                         name: "my_procedure".to_string(),
                         body: AST {
                             statements: vec![
-                                Statement::Command {
-                                    command: Command::Forward,
+                                Statement::ProcedureCall {
+                                    name: "forward".to_string(),
                                     args: vec![
                                         Expression::Number {
                                             val: 100
@@ -682,8 +665,8 @@ mod tests {
                                     count: 10,
                                     body: AST {
                                         statements: vec![
-                                            Statement::Command {
-                                                command: Command::Right,
+                                            Statement::ProcedureCall {
+                                                name: "right".to_string(),
                                                 args: vec![
                                                     Expression::Number {
                                                         val: 45,

@@ -7,9 +7,11 @@ use turtle::Turtle;
 
 mod lexer;
 mod parser;
+mod commands;
 
-use lexer::{Command, Lexer, Operator, Token};
+use lexer::{Lexer, Operator, Token};
 use parser::{Expression, Parser, Statement, AST};
+use commands::{TurtleCommand, get_turtle_commands};
 
 fn main() {
     let matches = App::new("Logo")
@@ -35,17 +37,18 @@ fn main() {
     let debug: bool = matches.is_present("debug");
     let mut vars: HashMap<String, Expression> = HashMap::new();
     let mut procedures: HashMap<String, AST> = HashMap::new();
+    let turtle_commands = get_turtle_commands();
 
     // if a script argument was passed, run the script
     if let Some(file) = matches.value_of("SCRIPT") {
-        run_program(&mut t, &fs::read_to_string(file).unwrap(), debug, &mut vars, &mut procedures);
+        run_program(&mut t, &fs::read_to_string(file).unwrap(), debug, &mut vars, &mut procedures, &turtle_commands);
     }
 
     // running interactive shell
     loop {
         let input = get_input();
 
-        run_program(&mut t, &input, debug, &mut vars, &mut procedures);
+        run_program(&mut t, &input, debug, &mut vars, &mut procedures, &turtle_commands);
     }
 }
 
@@ -55,6 +58,7 @@ fn run_program(
     debug: bool,
     vars: &mut HashMap<String, Expression>,
     procedures: &mut HashMap<String, AST>,
+    turtle_commands: &HashMap<String, TurtleCommand>
 ) {
     // lexing input and returning vector of tokens
     let mut lexer = Lexer::new(&input);
@@ -84,7 +88,7 @@ fn run_program(
                 println!("Parsing phase completed without error");
                 println!("{:?}", ast);
             }
-            run_ast(t, &ast, vars, procedures);
+            run_ast(t, &ast, vars, procedures, turtle_commands);
         }
         Err(e) => eprintln!("{:?}", e),
     }
@@ -95,9 +99,10 @@ fn run_ast(
     ast: &AST,
     vars: &mut HashMap<String, Expression>,
     procedures: &mut HashMap<String, AST>,
+    turtle_commands: &HashMap<String, TurtleCommand>
 ) {
     for stmt in ast.statements.iter() {
-        if let Err(e) = run_statement(t, stmt, vars, procedures) {
+        if let Err(e) = run_statement(t, stmt, vars, procedures, turtle_commands) {
             eprintln!("{:?}", e);
         }
     }
@@ -108,11 +113,12 @@ fn run_statement(
     stmt: &Statement,
     vars: &mut HashMap<String, Expression>,
     procedures: &mut HashMap<String, AST>,
+    turtle_commands: &HashMap<String, TurtleCommand>
 ) -> Result<(), String> {
     // currently does not handle varying argument types,
     // only accept LOGO number values as command arguments
     match stmt {
-        Statement::Procedure { name, body } => {
+        Statement::ProcedureDeclaration { name, body } => {
             if let Some(_) = procedures.get(name) {
                 return Err(format!("Procedure with name {} already exists.", name));
             }
@@ -120,13 +126,20 @@ fn run_statement(
             procedures.insert(name.to_string(), body.clone());
         }
 
-        Statement::ProcedureCall { name } => {
-            let ast = match procedures.get(name) {
-                Some(ast) => ast.clone(),
-                None => return Err("Undeclared procedure name.".to_string()),
-            };
-
-            run_ast(t, &ast, vars, procedures);
+        Statement::ProcedureCall { name, args } => {
+            if let Some(func) = turtle_commands.get(name) {
+                let mut _args: Vec<isize> = Vec::new();
+                for i in 0..args.len() {
+                    _args.push(evaluate_expression(&args[i], vars)?);
+                }
+                (*func)(t, &_args); 
+            } else {
+                let ast = match procedures.get(name) {
+                    Some(ast) => ast.clone(),
+                    None => return Err("Undeclared procedure name.".to_string()),
+                };
+                run_ast(t, &ast, vars, procedures, turtle_commands);
+            }
         },
 
         Statement::VariableDeclaration { name, val } => {
@@ -138,10 +151,11 @@ fn run_statement(
             vars.insert(name.to_string(), expr);
         }
 
+        /*
         Statement::Command {
             command,
             args: _args,
-        } => {
+        } => (),
             let mut args: Vec<f64> = Vec::new();
             for arg in _args.iter() {
                 args.push(evaluate_expression(arg, vars)? as f64);
@@ -182,10 +196,11 @@ fn run_statement(
                     .set_background_color([args[0], args[1], args[2]]),
             }
         }
+        */
 
         Statement::Repeat { count, body } => {
             for _ in 0..*count {
-                run_ast(t, body, vars, procedures);
+                run_ast(t, body, vars, procedures, turtle_commands);
             }
         }
     }
