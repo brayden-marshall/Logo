@@ -22,7 +22,6 @@
 - Left: `lt | left`
 - Right: `rt | right`
 - Show (prints value to screen): `show 10 show :variable`
-- Repeat (can be nested): `repeat 7 [ forward 100 rt 40 ]`
 
 - PenUp: `pu | penup`
 - PenDown: `pd | pendown`
@@ -38,6 +37,8 @@
 - SetScreenColor: `setscreencolor 255 0 0 setsc 123 123 123`
 - SetHeading: `setheading 0 seth 0`
 - SetXY: `setxy 60 60`
+
+- Repeat (can be nested): `repeat 7 [ forward 100 rt 40 ]`
 
 - Variables:
 ```

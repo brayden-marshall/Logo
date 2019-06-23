@@ -128,12 +128,12 @@ impl Evaluator {
             }
 
             Statement::ProcedureCall { name, args } => {
-                if let Some(func) = self.commands.get(name) {
+                if let Some(command) = self.commands.get(name) {
                     let mut _args: Vec<isize> = Vec::new();
                     for i in 0..args.len() {
                         _args.push(evaluate_expression(&args[i], &mut self.vars)?);
                     }
-                    (*func)(&mut self.turtle, &_args); 
+                    (command.func)(&mut self.turtle, &_args); 
                 } else {
                     let ast = match self.procedures.get(name) {
                         Some(ast) => ast.clone(),
