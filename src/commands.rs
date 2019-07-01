@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use turtle::Turtle;
 
 pub struct TurtleCommand {
-    pub arity: u8,
+    pub arity: usize,
     pub func: Box<Fn(&mut Turtle, &Vec<isize>) -> ()>,
 }
 
-fn command<F: 'static>(arity: u8, func: F) -> TurtleCommand
+fn command<F: 'static>(arity: usize, func: F) -> TurtleCommand
 where F: Fn(&mut Turtle, &Vec<isize>) {
     TurtleCommand {
         arity,

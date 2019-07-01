@@ -29,9 +29,6 @@ pub enum Expression {
     ArithmeticExpression { postfix: Vec<Expression> },
     Operator { op: Operator },
     Number { val: isize },
-    //Word {
-    //    literal: String,
-    //},
     Variable { name: String },
 }
 
@@ -102,20 +99,6 @@ impl<'a> Parser<'a> {
 
         Ok(Statement::ProcedureCall { name: name.to_string(), args })
     }
-
-    /*
-    fn parse_command(&mut self, command: Command) -> Result<Statement, ParseError> {
-        let mut args: Vec<Expression> = Vec::new();
-
-        // consuming the next tokens as arguments according to how many
-        // the arguments the command takes as input
-        for _ in 0..command.arity() {
-            args.push(self.parse_expression()?);
-        }
-
-        Ok(Statement::Command { command, args })
-    }
-    */
 
     fn parse_repeat(&mut self) -> Result<Statement, ParseError> {
         let mut body: Vec<Statement> = Vec::new();
@@ -317,7 +300,6 @@ impl<'a> Parser<'a> {
                 Token::Variable { name } => Ok(Expression::Variable {
                     name: name.to_string(),
                 }),
-                //Token::LParen => Parser::parse_arithmetic_expression(&mut self.tokens, None),
                 _ => Err(ParseError::TypeError),
             },
             None => Err(ParseError::EOF),

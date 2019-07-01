@@ -129,6 +129,10 @@ impl Evaluator {
 
             Statement::ProcedureCall { name, args } => {
                 if let Some(command) = self.commands.get(name) {
+                    if command.arity != args.len() {
+                        return Err("Wrong number of arguments".to_string());
+                    }
+
                     let mut _args: Vec<isize> = Vec::new();
                     for i in 0..args.len() {
                         _args.push(evaluate_expression(&args[i], &mut self.vars)?);
