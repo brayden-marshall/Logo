@@ -1,19 +1,19 @@
 # Logo
 
-## Issues
+## Todo before going public
 
-- error reporting is currently terrible and needs to be worked on, we need:
-    - create error type for runtime errors in `main.rs`
-    - possibly more error types: or adding value fields to error enum types if applicable
-    - location that the error occured
-    - implement Display on errory types instead of using Debug
-    - as much information as possible in messages
-
-- find good way to be able to implement (parse is the main issue) prefix functions on numbers i.e. `random 100 sqrt 64` [ the solution is probably to parse it as an arithmetic expression as soon as we hit a function ]
-
-- commands that take multiple arguments (setpencolor, etc.) should take an array as an argument? `setpencolor [255 123 123]`
-
-- currently the only data type supported is Number (Variables can only be Numbers as well)
+- add support for parameterized procedures
+- polish up error-reporting (a lot):
+    - create a new branch for error changes
+    - add runtime error types
+    - add proper messages for all error-types
+    - refactor error types and related code into separate file
+    - location of statements in file (????) (would need a lot of changes to the lexer including row/column tracking and changing the way that newlines are handled)
+    - manually test scenarios to see if messages make sense
+- write a repository description
+    - we want to say that this was my first attempt at an interpreter and that it was an experiment
+- delete simplify-lexer branch
+- vet code and cleanup/improve where necessary (we wanna make it look good)
 
 ## Supported Commands
 
@@ -63,12 +63,8 @@ draw_circle
 - Exit (added for convenience): `exit`
 
 ## Things to implement 
-### Small-scale
+
 - Comments: `; this is a comment`
-- Fill (fill enclosed shape, fill is not currently implemented in the `turtle` library, so this may be tricky): `fill`
+- Fill (fills enclosed shape, fill is not currently implemented in the `turtle` library, so this may be tricky): `fill`
 - Label: `label "something`
-- Random (1 argument is max number): `forward random 100`
-
-### Large-scale
-
 - Control Flow (if, if-else) (need to also implement boolean type)
