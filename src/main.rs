@@ -5,13 +5,13 @@ use std::io::{self, Write};
 use clap::{App, Arg};
 use turtle::Turtle;
 
+mod commands;
 mod lexer;
 mod parser;
-mod commands;
 
+use commands::{get_turtle_commands, TurtleCommand};
 use lexer::{Lexer, Operator, Token};
 use parser::{Expression, Parser, Statement, AST};
-use commands::{TurtleCommand, get_turtle_commands};
 
 fn main() {
     let matches = App::new("Logo")
@@ -63,10 +63,7 @@ pub struct Evaluator {
 }
 
 impl Evaluator {
-    pub fn run_program(
-        &mut self,
-        input: &str,
-    ) {
+    pub fn run_program(&mut self, input: &str) {
         // lexing input and returning vector of tokens
         let mut lexer = Lexer::new(&input);
         let mut tokens: Vec<Token> = Vec::new();
@@ -101,10 +98,7 @@ impl Evaluator {
         }
     }
 
-    fn run_ast(
-        &mut self,
-        ast: &AST,
-    ) {
+    fn run_ast(&mut self, ast: &AST) {
         for stmt in ast.statements.iter() {
             if let Err(e) = self.run_statement(stmt) {
                 eprintln!("{:?}", e);
@@ -112,10 +106,7 @@ impl Evaluator {
         }
     }
 
-    fn run_statement(
-        &mut self,
-        stmt: &Statement,
-    ) -> Result<(), String> {
+    fn run_statement(&mut self, stmt: &Statement) -> Result<(), String> {
         // currently does not handle varying argument types,
         // only accept LOGO number values as command arguments
         match stmt {
@@ -137,7 +128,7 @@ impl Evaluator {
                     for i in 0..args.len() {
                         _args.push(evaluate_expression(&args[i], &mut self.vars)?);
                     }
-                    (command.func)(&mut self.turtle, &_args); 
+                    (command.func)(&mut self.turtle, &_args);
                 } else {
                     let ast = match self.procedures.get(name) {
                         Some(ast) => ast.clone(),
@@ -145,7 +136,7 @@ impl Evaluator {
                     };
                     self.run_ast(&ast);
                 }
-            },
+            }
 
             Statement::VariableDeclaration { name, val } => {
                 let _val = (**val).clone();
@@ -180,8 +171,7 @@ fn evaluate_expression(
             },
             None => Err(format!("Variable {} does not exist", name)),
         },
-        Expression::ArithmeticExpression { postfix } =>
-            Ok(evaluate_postfix(postfix, vars)?),
+        Expression::ArithmeticExpression { postfix } => Ok(evaluate_postfix(postfix, vars)?),
         _ => Err(String::from("There was an errorrrror")),
     }
 }
@@ -222,7 +212,6 @@ fn evaluate_postfix(
     }
     Ok(stack[0])
 }
-
 
 fn get_input() -> String {
     print!(">> ");

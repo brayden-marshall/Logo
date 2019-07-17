@@ -7,7 +7,9 @@ pub struct TurtleCommand {
 }
 
 fn command<F: 'static>(arity: usize, func: F) -> TurtleCommand
-where F: Fn(&mut Turtle, &Vec<isize>) {
+where
+    F: Fn(&mut Turtle, &Vec<isize>),
+{
     TurtleCommand {
         arity,
         func: Box::new(func),
@@ -17,39 +19,42 @@ where F: Fn(&mut Turtle, &Vec<isize>) {
 pub fn get_turtle_commands() -> HashMap<String, TurtleCommand> {
     vec![
         // movement
-        ("forward",        command(1, forward)),
-        ("fd",             command(1, forward)),
-        ("backward",       command(1, backward)),
-        ("bk",             command(1, backward)),
-        ("left",           command(1, left)),
-        ("lt",             command(1, left)),
-        ("right",          command(1, right)),
-        ("rt",             command(1, right)),
-        ("setheading",     command(1, set_heading)),
-        ("seth",           command(1, set_heading)),
-        ("setxy",          command(2, set_xy)),
-        ("home",           command(0, home)),
+        ("forward", command(1, forward)),
+        ("fd", command(1, forward)),
+        ("backward", command(1, backward)),
+        ("bk", command(1, backward)),
+        ("left", command(1, left)),
+        ("lt", command(1, left)),
+        ("right", command(1, right)),
+        ("rt", command(1, right)),
+        ("setheading", command(1, set_heading)),
+        ("seth", command(1, set_heading)),
+        ("setxy", command(2, set_xy)),
+        ("home", command(0, home)),
         // pen
-        ("penup",          command(0, pen_up)),
-        ("pu",             command(0, pen_up)),
-        ("pendown",        command(0, pen_down)),
-        ("pd",             command(0, pen_down)),
-        ("setpensize",     command(1, set_pen_size)),
-        ("setpencolor",    command(3, set_pen_color)),
-        ("setpc",          command(3, set_pen_color)),
+        ("penup", command(0, pen_up)),
+        ("pu", command(0, pen_up)),
+        ("pendown", command(0, pen_down)),
+        ("pd", command(0, pen_down)),
+        ("setpensize", command(1, set_pen_size)),
+        ("setpencolor", command(3, set_pen_color)),
+        ("setpc", command(3, set_pen_color)),
         //other
-        ("hideturtle",     command(0, hide_turtle)),
-        ("ht",             command(0, hide_turtle)),
-        ("showturtle",     command(0, show_turtle)),
-        ("st",             command(0, show_turtle)),
-        ("clearscreen",    command(0, clear_screen)),
-        ("cs",             command(0, clear_screen)),
-        ("clean",          command(0, clean)),
+        ("hideturtle", command(0, hide_turtle)),
+        ("ht", command(0, hide_turtle)),
+        ("showturtle", command(0, show_turtle)),
+        ("st", command(0, show_turtle)),
+        ("clearscreen", command(0, clear_screen)),
+        ("cs", command(0, clear_screen)),
+        ("clean", command(0, clean)),
         ("setscreencolor", command(3, set_screen_color)),
-        ("setsc",          command(3, set_screen_color)),
-        ("show",           command(0, show)),
-        ("exit",           command(0, exit)),
-    ].into_iter().map(|x| (x.0.to_string(), x.1)).collect()
+        ("setsc", command(3, set_screen_color)),
+        ("show", command(0, show)),
+        ("exit", command(0, exit)),
+    ]
+    .into_iter()
+    .map(|x| (x.0.to_string(), x.1))
+    .collect()
 }
 
 fn forward(turtle: &mut Turtle, args: &Vec<isize>) {
@@ -114,9 +119,9 @@ fn clean(turtle: &mut Turtle, _args: &Vec<isize>) {
 }
 
 fn set_screen_color(turtle: &mut Turtle, args: &Vec<isize>) {
-    turtle.drawing_mut().set_background_color(
-        [args[0] as f64, args[1] as f64, args[2] as f64]
-    );
+    turtle
+        .drawing_mut()
+        .set_background_color([args[0] as f64, args[1] as f64, args[2] as f64]);
 }
 
 fn show(_turtle: &mut Turtle, args: &Vec<isize>) {

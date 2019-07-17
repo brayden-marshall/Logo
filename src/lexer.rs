@@ -1,7 +1,8 @@
-use regex::Regex;
+use std::default::Default;
 #[allow(unused_imports)]
 use std::iter::FromIterator;
-use std::default::Default;
+
+use regex::Regex;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operator {
@@ -42,16 +43,20 @@ pub enum Token {
     RParen,
 }
 
+fn regex(input: &str) -> Regex {
+    Regex::new(input).unwrap()
+}
+
 struct TokenDef {
     token: Token,
     regex: Regex,
 }
 
 impl TokenDef {
-    fn new(token: Token, _regex: &str) -> Self {
+    fn new(token: Token, token_regex: &str) -> Self {
         TokenDef {
             token,
-            regex: regex(_regex),
+            regex: regex(token_regex),
         }
     }
 }
@@ -59,10 +64,7 @@ impl TokenDef {
 const NUMBER_REGEX: &str = r"^-?[0-9]+";
 const WORD_REGEX: &str = r#"^"[a-zA-Z][0-9a-zA-Z_]*"#;
 const VARIABLE_REGEX: &str = r"^:[a-zA-Z][0-9a-zA-Z_]*";
-
-fn regex(input: &str) -> Regex {
-    Regex::new(input).unwrap()
-}
+const IDENT_REGEX: &str = r"^[a-zA-Z][0-9a-zA-Z_]*";
 
 // returns a vector of the definition of every language token
 // a token definition consists of it's enumerated type and
@@ -75,10 +77,30 @@ fn get_token_definitions() -> Vec<TokenDef> {
         TokenDef::new(Token::To, r"^to"),
         TokenDef::new(Token::End, r"^end"),
         // main tokens
-        TokenDef::new(Token::Number { literal: Default::default() }, NUMBER_REGEX),
-        TokenDef::new(Token::Word { literal: Default::default() }, WORD_REGEX),
-        TokenDef::new(Token::Variable { name: Default::default() }, VARIABLE_REGEX),
-        TokenDef::new(Token::Identifier { literal: "".to_string() }, r"^[a-zA-Z][0-9a-zA-Z_]*"),
+        TokenDef::new(
+            Token::Number {
+                literal: Default::default(),
+            },
+            NUMBER_REGEX,
+        ),
+        TokenDef::new(
+            Token::Word {
+                literal: Default::default(),
+            },
+            WORD_REGEX,
+        ),
+        TokenDef::new(
+            Token::Variable {
+                name: Default::default(),
+            },
+            VARIABLE_REGEX,
+        ),
+        TokenDef::new(
+            Token::Identifier {
+                literal: "".to_string(),
+            },
+            IDENT_REGEX,
+        ),
         // bracket characters
         TokenDef::new(Token::LBracket, r"^\["),
         TokenDef::new(Token::RBracket, r"^\]"),
@@ -134,7 +156,7 @@ impl<'a> Iterator for Lexer<'a> {
         self.skip_whitespace();
 
         // if we have reached the end of source, return None
-        if self.index == self.source.len() {
+        if self.index >= self.source.len() {
             return None;
         }
 
@@ -158,20 +180,19 @@ impl<'a> Iterator for Lexer<'a> {
                         ),
                     },
                     Token::Identifier { literal: _ } => Token::Identifier {
-                        literal: String::from(
-                            &self.source[self.index..self.index + m.end()],
-                        ),
+                        literal: String::from(&self.source[self.index..self.index + m.end()]),
                     },
                     _ => def.token.clone(),
                 };
 
-                // increasing internal index counter by the number of characters
+                // increasing internal index counter by the number of characters:
                 // the token consumed
                 self.index += m.end();
                 return Some(Ok(token));
             }
         }
 
+        // no match was found for any token definition
         Some(Err(LexError::UnrecognizedToken))
     }
 }
@@ -314,7 +335,9 @@ mod tests {
                     literal: String::from("7"),
                 },
                 Token::LBracket,
-                Token::Identifier { literal: "forward".to_string() },
+                Token::Identifier {
+                    literal: "forward".to_string(),
+                },
                 Token::Number {
                     literal: String::from("100"),
                 },
@@ -345,9 +368,15 @@ mod tests {
             "to my_procedure forward 100 end",
             vec![
                 Token::To,
-                Token::Identifier { literal: "my_procedure".to_string() },
-                Token::Identifier { literal: "forward".to_string() },
-                Token::Number { literal: "100".to_string() },
+                Token::Identifier {
+                    literal: "my_procedure".to_string(),
+                },
+                Token::Identifier {
+                    literal: "forward".to_string(),
+                },
+                Token::Number {
+                    literal: "100".to_string(),
+                },
                 Token::End,
             ],
         );

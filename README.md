@@ -1,5 +1,7 @@
 # Logo
 
+A Logo language interpreter written in Rust. This interpreter supports many basic turtle graphics commands, as well as variables, procedures, loops, and arithmetic expressions. All turtle graphics functionality is handled by the [sunjay/Turtle](github.com/sunjay/Turtle) Rust library.
+
 ## Todo before going public
 
 - add support for parameterized procedures
@@ -10,9 +12,6 @@
     - refactor error types and related code into separate file
     - location of statements in file (????) (would need a lot of changes to the lexer including row/column tracking and changing the way that newlines are handled)
     - manually test scenarios to see if messages make sense
-- write a repository description
-    - we want to say that this was my first attempt at an interpreter and that it was an experiment
-- delete simplify-lexer branch
 - vet code and cleanup/improve where necessary (we wanna make it look good)
 
 ## Supported Commands

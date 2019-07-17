@@ -5,22 +5,10 @@ use std::slice;
 /// Statements are any logo 'sentence' that does not evaluate to a value
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    Repeat {
-        count: usize,
-        body: AST,
-    },
-    VariableDeclaration {
-        name: String,
-        val: Box<Expression>,
-    },
-    ProcedureDeclaration {
-        name: String,
-        body: AST,
-    },
-    ProcedureCall {
-        name: String,
-        args: Vec<Expression>,
-    },
+    Repeat { count: usize, body: AST },
+    VariableDeclaration { name: String, val: Box<Expression> },
+    ProcedureDeclaration { name: String, body: AST },
+    ProcedureCall { name: String, args: Vec<Expression> },
 }
 
 /// Expressions are any logo 'sentence' that evaluates to a value
@@ -91,13 +79,17 @@ impl<'a> Parser<'a> {
 
         while let Some(tok) = self.tokens.peek() {
             match tok {
-                Token::Variable { name: _ } | Token::Number { literal: _ } =>
-                    args.push(self.parse_expression()?),
+                Token::Variable { name: _ } | Token::Number { literal: _ } => {
+                    args.push(self.parse_expression()?)
+                }
                 _ => break,
             }
         }
 
-        Ok(Statement::ProcedureCall { name: name.to_string(), args })
+        Ok(Statement::ProcedureCall {
+            name: name.to_string(),
+            args,
+        })
     }
 
     fn parse_repeat(&mut self) -> Result<Statement, ParseError> {
@@ -135,7 +127,10 @@ impl<'a> Parser<'a> {
             }?);
         }
 
-        Ok(Statement::Repeat { count, body: AST { statements: body }})
+        Ok(Statement::Repeat {
+            count,
+            body: AST { statements: body },
+        })
     }
 
     fn parse_procedure_declaration(&mut self) -> Result<Statement, ParseError> {
@@ -146,7 +141,7 @@ impl<'a> Parser<'a> {
             },
             None => Err(ParseError::EOF),
         }?;
-        
+
         let mut body = AST::new();
 
         loop {
@@ -159,7 +154,7 @@ impl<'a> Parser<'a> {
             }?);
         }
 
-        Ok(Statement::ProcedureDeclaration { name, body } )
+        Ok(Statement::ProcedureDeclaration { name, body })
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Statement, ParseError> {
@@ -216,10 +211,11 @@ impl<'a> Parser<'a> {
                     }),
                     Token::Operator(op) => {
                         while !operator_stack.is_empty()
-                            && op.precedence() <= match &operator_stack[operator_stack.len()-1] {
-                                Token::Operator(op) => op.precedence(),
-                                _ => 0,
-                            }
+                            && op.precedence()
+                                <= match &operator_stack[operator_stack.len() - 1] {
+                                    Token::Operator(op) => op.precedence(),
+                                    _ => 0,
+                                }
                         {
                             if let Some(popped) = operator_stack.pop() {
                                 match popped {
@@ -233,33 +229,32 @@ impl<'a> Parser<'a> {
 
                     Token::LParen => operator_stack.push(Token::LParen),
 
-                    Token::RParen => {
-                        loop {
-                            if operator_stack.is_empty() {
-                                return Err(ParseError::MismatchParens);
+                    Token::RParen => loop {
+                        if operator_stack.is_empty() {
+                            return Err(ParseError::MismatchParens);
+                        }
+
+                        match operator_stack[operator_stack.len() - 1] {
+                            Token::LParen => {
+                                operator_stack.pop();
+                                break;
                             }
+                            _ => match operator_stack.pop() {
+                                Some(tok) => output.push(match tok {
+                                    Token::Number { literal } => {
+                                        Parser::parse_number(literal.to_string())?
+                                    }
 
-                            match operator_stack[operator_stack.len() - 1] {
-                                Token::LParen => {
-                                    operator_stack.pop();
-                                    break;
-                                },
-                                _ => match operator_stack.pop() {
-                                    Some(tok) => output.push(match tok {
-                                        Token::Number { literal } =>
-                                            Parser::parse_number(literal.to_string())?,
+                                    Token::Variable { name } => Expression::Variable {
+                                        name: name.to_string(),
+                                    },
 
-                                        Token::Variable { name } =>
-                                            Expression::Variable { name: name.to_string() },
+                                    Token::Operator(op) => Expression::Operator { op },
 
-                                        Token::Operator(op) =>
-                                            Expression::Operator { op },
-                                        
-                                        _ => return Err(ParseError::TypeError),
-                                    }),
-                                    _ => (),
-                                }
-                            }
+                                    _ => return Err(ParseError::TypeError),
+                                }),
+                                _ => (),
+                            },
                         }
                     },
                     _ => (),
@@ -286,7 +281,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
-        
         // if the next token is a left paren, parse an arithmetic expression
         if let Some(tok) = self.tokens.peek() {
             if let Token::LParen = tok {
@@ -329,7 +323,9 @@ mod tests {
     fn parse_short_command_test() {
         parse_test(
             vec![
-                Token::Identifier { literal: "forward".to_string() },
+                Token::Identifier {
+                    literal: "forward".to_string(),
+                },
                 Token::Number {
                     literal: String::from("70"),
                 },
@@ -347,7 +343,9 @@ mod tests {
     fn parse_two_argument_command_test() {
         parse_test(
             vec![
-                Token::Identifier { literal: "setxy".to_string() },
+                Token::Identifier {
+                    literal: "setxy".to_string(),
+                },
                 Token::Number {
                     literal: String::from("-60"),
                 },
@@ -371,7 +369,9 @@ mod tests {
     fn parse_variable_argument_command_test() {
         parse_test(
             vec![
-                Token::Identifier { literal: "setxy".to_string() },
+                Token::Identifier {
+                    literal: "setxy".to_string(),
+                },
                 Token::Variable {
                     name: String::from("x"),
                 },
@@ -405,7 +405,9 @@ mod tests {
                     literal: String::from("10"),
                 },
                 Token::LBracket,
-                Token::Identifier { literal: "forward".to_string() },
+                Token::Identifier {
+                    literal: "forward".to_string(),
+                },
                 Token::Number {
                     literal: String::from("50"),
                 },
@@ -415,12 +417,10 @@ mod tests {
                 statements: vec![Statement::Repeat {
                     count: 10,
                     body: AST {
-                        statements: vec![
-                            Statement::ProcedureCall {
-                                name: "forward".to_string(),
-                                args: vec![Expression::Number { val: 50 }],
-                            },
-                        ],
+                        statements: vec![Statement::ProcedureCall {
+                            name: "forward".to_string(),
+                            args: vec![Expression::Number { val: 50 }],
+                        }],
                     },
                 }],
             },
@@ -437,7 +437,9 @@ mod tests {
                     literal: String::from("10"),
                 },
                 Token::LBracket,
-                Token::Identifier { literal: "forward".to_string() },
+                Token::Identifier {
+                    literal: "forward".to_string(),
+                },
                 Token::Number {
                     literal: String::from("50"),
                 },
@@ -446,7 +448,9 @@ mod tests {
                     literal: String::from("45"),
                 },
                 Token::LBracket,
-                Token::Identifier { literal: "right".to_string() },
+                Token::Identifier {
+                    literal: "right".to_string(),
+                },
                 Token::Number {
                     literal: String::from("1"),
                 },
@@ -456,7 +460,7 @@ mod tests {
             AST {
                 statements: vec![Statement::Repeat {
                     count: 10,
-                    body: AST{
+                    body: AST {
                         statements: vec![
                             Statement::ProcedureCall {
                                 name: "forward".to_string(),
@@ -465,15 +469,13 @@ mod tests {
                             Statement::Repeat {
                                 count: 45,
                                 body: AST {
-                                    statements: vec![
-                                        Statement::ProcedureCall {
-                                            name: "right".to_string(),
-                                            args: vec![Expression::Number { val: 1 }],
-                                        }
-                                    ],
-                                }
+                                    statements: vec![Statement::ProcedureCall {
+                                        name: "right".to_string(),
+                                        args: vec![Expression::Number { val: 1 }],
+                                    }],
+                                },
                             },
-                        ]
+                        ],
                     },
                 }],
             },
@@ -569,18 +571,28 @@ mod tests {
         let input = vec![
             Token::LParen,
             Token::LParen,
-            Token::Number { literal: "2".to_string() },
+            Token::Number {
+                literal: "2".to_string(),
+            },
             Token::Operator(Operator::Addition),
-            Token::Number { literal: "7".to_string() },
+            Token::Number {
+                literal: "7".to_string(),
+            },
             Token::RParen,
             Token::Operator(Operator::Multiplication),
             Token::LParen,
-            Token::Number { literal: "5".to_string() },
+            Token::Number {
+                literal: "5".to_string(),
+            },
             Token::Operator(Operator::Multiplication),
             Token::LParen,
-            Token::Number { literal: "3".to_string() },
+            Token::Number {
+                literal: "3".to_string(),
+            },
             Token::Operator(Operator::Division),
-            Token::Number { literal: "1".to_string() },
+            Token::Number {
+                literal: "1".to_string(),
+            },
             Token::RParen,
             Token::RParen,
             Token::RParen,
@@ -593,13 +605,21 @@ mod tests {
                 postfix: vec![
                     Expression::Number { val: 2 },
                     Expression::Number { val: 7 },
-                    Expression::Operator { op: Operator::Addition },
+                    Expression::Operator {
+                        op: Operator::Addition
+                    },
                     Expression::Number { val: 5 },
                     Expression::Number { val: 3 },
                     Expression::Number { val: 1 },
-                    Expression::Operator { op: Operator::Division },
-                    Expression::Operator { op: Operator::Multiplication },
-                    Expression::Operator { op: Operator::Multiplication },
+                    Expression::Operator {
+                        op: Operator::Division
+                    },
+                    Expression::Operator {
+                        op: Operator::Multiplication
+                    },
+                    Expression::Operator {
+                        op: Operator::Multiplication
+                    },
                 ],
             }
         );
@@ -614,54 +634,54 @@ mod tests {
          * ]
          * end
          *
-        */
+         */
         parse_test(
             vec![
                 Token::To,
-                Token::Identifier { literal: "my_procedure".to_string() },
-                Token::Identifier{ literal: "forward".to_string() },
-                Token::Number { literal: "100".to_string() },
+                Token::Identifier {
+                    literal: "my_procedure".to_string(),
+                },
+                Token::Identifier {
+                    literal: "forward".to_string(),
+                },
+                Token::Number {
+                    literal: "100".to_string(),
+                },
                 Token::Repeat,
-                Token::Number { literal: "10".to_string() },
+                Token::Number {
+                    literal: "10".to_string(),
+                },
                 Token::LBracket,
-                Token::Identifier { literal: "right".to_string() },
-                Token::Number { literal: "45".to_string() },
+                Token::Identifier {
+                    literal: "right".to_string(),
+                },
+                Token::Number {
+                    literal: "45".to_string(),
+                },
                 Token::RBracket,
                 Token::End,
             ],
             AST {
-                statements: vec![
-                    Statement::ProcedureDeclaration {
-                        name: "my_procedure".to_string(),
-                        body: AST {
-                            statements: vec![
-                                Statement::ProcedureCall {
-                                    name: "forward".to_string(),
-                                    args: vec![
-                                        Expression::Number {
-                                            val: 100
-                                        },
-                                    ],
+                statements: vec![Statement::ProcedureDeclaration {
+                    name: "my_procedure".to_string(),
+                    body: AST {
+                        statements: vec![
+                            Statement::ProcedureCall {
+                                name: "forward".to_string(),
+                                args: vec![Expression::Number { val: 100 }],
+                            },
+                            Statement::Repeat {
+                                count: 10,
+                                body: AST {
+                                    statements: vec![Statement::ProcedureCall {
+                                        name: "right".to_string(),
+                                        args: vec![Expression::Number { val: 45 }],
+                                    }],
                                 },
-                                Statement::Repeat {
-                                    count: 10,
-                                    body: AST {
-                                        statements: vec![
-                                            Statement::ProcedureCall {
-                                                name: "right".to_string(),
-                                                args: vec![
-                                                    Expression::Number {
-                                                        val: 45,
-                                                    },
-                                                ],
-                                            }
-                                        ]
-                                    }
-                                },
-                            ],
-                        }
-                    }
-                ],
+                            },
+                        ],
+                    },
+                }],
             },
         );
     }
