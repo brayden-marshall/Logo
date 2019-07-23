@@ -54,10 +54,15 @@ fn main() {
     }
 }
 
+pub struct Procedure {
+    ast: AST,
+    params: Vec<String>,
+}
+
 pub struct Evaluator {
     turtle: Turtle,
     vars: HashMap<String, Expression>,
-    procedures: HashMap<String, AST>,
+    procedures: HashMap<String, Procedure>,
     commands: HashMap<String, TurtleCommand>,
     debug: bool,
 }
@@ -110,12 +115,15 @@ impl Evaluator {
         // currently does not handle varying argument types,
         // only accept LOGO number values as command arguments
         match stmt {
-            Statement::ProcedureDeclaration { name, body } => {
+            Statement::ProcedureDeclaration { name, body, params} => {
                 if let Some(_) = self.procedures.get(name) {
                     return Err(format!("Procedure with name {} already exists.", name));
                 }
 
-                self.procedures.insert(name.to_string(), body.clone());
+                self.procedures.insert(name.to_string(), Procedure {
+                    ast: body.clone(),
+                    params: params.clone(),
+                });
             }
 
             Statement::ProcedureCall { name, args } => {
@@ -130,10 +138,25 @@ impl Evaluator {
                     }
                     (command.func)(&mut self.turtle, &_args);
                 } else {
-                    let ast = match self.procedures.get(name) {
-                        Some(ast) => ast.clone(),
-                        None => return Err("Undeclared procedure name.".to_string()),
+                    let procedure = match self.procedures.get(name) {
+                        Some(p) => p,
+                        None => return Err("Use of undeclared procedure.".to_string()),
                     };
+
+                    if args.len() != procedure.params.len() {
+                        return Err("Wrong number of arguments".to_string());
+                    }
+
+                    let ast = procedure.ast.clone();
+
+                    let mut local_vars = HashMap::<String, Expression>::new();
+                    for i in 0..args.len() {
+                        local_vars.insert(
+                            procedure.params[i].to_string(),
+                            args[i].clone(),
+                        );
+                    }
+
                     self.run_ast(&ast);
                 }
             }

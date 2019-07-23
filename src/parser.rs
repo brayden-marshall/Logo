@@ -7,7 +7,7 @@ use std::slice;
 pub enum Statement {
     Repeat { count: usize, body: AST },
     VariableDeclaration { name: String, val: Box<Expression> },
-    ProcedureDeclaration { name: String, body: AST },
+    ProcedureDeclaration { name: String, body: AST, params: Vec<String> },
     ProcedureCall { name: String, args: Vec<Expression> },
 }
 
@@ -141,6 +141,18 @@ impl<'a> Parser<'a> {
             },
             None => Err(ParseError::EOF),
         }?;
+        
+        // parse parameters if given
+        let mut params = Vec::<String>::new();
+        while let Some(tok) = self.tokens.peek() {
+            match tok {
+                Token::Variable { name } => {
+                    params.push(name.to_string());
+                    self.tokens.next();
+                },
+                _ => break,
+            }
+        }
 
         let mut body = AST::new();
 
@@ -154,7 +166,7 @@ impl<'a> Parser<'a> {
             }?);
         }
 
-        Ok(Statement::ProcedureDeclaration { name, body })
+        Ok(Statement::ProcedureDeclaration { name, body, params })
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Statement, ParseError> {
@@ -681,6 +693,7 @@ mod tests {
                             },
                         ],
                     },
+                    params: Vec::new(),
                 }],
             },
         );
