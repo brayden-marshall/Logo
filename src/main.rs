@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::default::Default;
 use std::fs;
 use std::io::{self, Write};
 
@@ -42,7 +41,7 @@ fn main() {
         .get_matches();
 
     let mut evaluator = Evaluator::new(EvaluatorConfig {
-        turtle: matches.is_present("no-turtle"),
+        turtle: !matches.is_present("no-turtle"),
         debug: matches.is_present("debug"),
     });
 
@@ -87,7 +86,7 @@ impl Evaluator {
             locals: Vec::new(),
             procedures: HashMap::new(),
             commands: get_turtle_commands(),
-            debug: config.turtle,
+            debug: config.debug,
         }
     }
 
@@ -284,7 +283,10 @@ impl Evaluator {
 fn get_input() -> String {
     print!(">> ");
     match io::stdout().flush() {
-        Err(e) => panic!(e),
+        Err(e) => {
+            eprintln!("{:?}", e);
+            panic!(e);
+        },
         Ok(_) => (),
     }
 
