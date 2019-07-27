@@ -49,7 +49,7 @@ pub fn get_turtle_commands() -> HashMap<String, TurtleCommand> {
         ("clean", command(0, clean)),
         ("setscreencolor", command(3, set_screen_color)),
         ("setsc", command(3, set_screen_color)),
-        ("show", command(0, show)),
+        ("show", command(1, show)),
         ("exit", command(0, exit)),
     ]
     .into_iter()

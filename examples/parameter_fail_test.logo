@@ -1,0 +1,5 @@
+to make_local_x
+make "x 10
+end
+
+show :x

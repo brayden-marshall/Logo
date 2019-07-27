@@ -300,6 +300,27 @@ mod tests {
     }
 
     #[test]
+    fn lex_identifier_test() {
+        lex_test(
+            "hello HELLO hello_there N_UM53r5",
+            vec![
+                Token::Identifier{
+                    literal: String::from("hello"),
+                },
+                Token::Identifier{
+                    literal: String::from("HELLO"),
+                },
+                Token::Identifier{
+                    literal: String::from("hello_there"),
+                },
+                Token::Identifier{
+                    literal: String::from("N_UM53r5"),
+                },
+            ],
+        );
+    }
+
+    #[test]
     fn lex_operator_test() {
         lex_test(
             "+ - * /",

@@ -33,13 +33,7 @@ fn main() {
         )
         .get_matches();
 
-    let mut evaluator = Evaluator {
-        turtle: Turtle::new(),
-        vars: HashMap::new(),
-        procedures: HashMap::new(),
-        commands: get_turtle_commands(),
-        debug: matches.is_present("debug"),
-    };
+    let mut evaluator = Evaluator::new(matches.is_present("debug"));
 
     // if a script argument was passed, run the script
     if let Some(file) = matches.value_of("SCRIPT") {
@@ -61,13 +55,26 @@ pub struct Procedure {
 
 pub struct Evaluator {
     turtle: Turtle,
-    vars: HashMap<String, Expression>,
+    globals: HashMap<String, Expression>,
+    // stack of local scopes
+    locals: Vec<HashMap<String, Expression>>,
     procedures: HashMap<String, Procedure>,
     commands: HashMap<String, TurtleCommand>,
     debug: bool,
 }
 
 impl Evaluator {
+    pub fn new(debug: bool) -> Self {
+        Evaluator {
+            turtle: Turtle::new(),
+            globals: HashMap::new(),
+            locals: Vec::new(),
+            procedures: HashMap::new(),
+            commands: get_turtle_commands(),
+            debug,
+        }
+    }
+
     pub fn run_program(&mut self, input: &str) {
         // lexing input and returning vector of tokens
         let mut lexer = Lexer::new(&input);
@@ -87,10 +94,10 @@ impl Evaluator {
             println!("{:?}", tokens);
         }
 
-        let mut parser = Parser::new(&tokens);
-
         // building the AST out of the tokens and running the program
         // based off of the AST
+        let mut parser = Parser::new(&tokens);
+
         match parser.build_ast() {
             Ok(ast) => {
                 if self.debug {
@@ -99,7 +106,7 @@ impl Evaluator {
                 }
                 self.run_ast(&ast);
             }
-            Err(e) => eprintln!("{:?}", e),
+            Err(e) => eprintln!("Error: {:?}", e),
         }
     }
 
@@ -111,19 +118,25 @@ impl Evaluator {
         }
     }
 
-    fn run_statement(&mut self, stmt: &Statement) -> Result<(), String> {
+    fn run_statement(
+        &mut self,
+        stmt: &Statement,
+    ) -> Result<(), String> {
         // currently does not handle varying argument types,
         // only accept LOGO number values as command arguments
         match stmt {
-            Statement::ProcedureDeclaration { name, body, params} => {
+            Statement::ProcedureDeclaration { name, body, params } => {
                 if let Some(_) = self.procedures.get(name) {
                     return Err(format!("Procedure with name {} already exists.", name));
                 }
 
-                self.procedures.insert(name.to_string(), Procedure {
-                    ast: body.clone(),
-                    params: params.clone(),
-                });
+                self.procedures.insert(
+                    name.to_string(),
+                    Procedure {
+                        ast: body.clone(),
+                        params: params.clone(),
+                    },
+                );
             }
 
             Statement::ProcedureCall { name, args } => {
@@ -134,7 +147,7 @@ impl Evaluator {
 
                     let mut _args: Vec<isize> = Vec::new();
                     for i in 0..args.len() {
-                        _args.push(evaluate_expression(&args[i], &mut self.vars)?);
+                        _args.push(self.evaluate_expression(&args[i])?);
                     }
                     (command.func)(&mut self.turtle, &_args);
                 } else {
@@ -151,23 +164,32 @@ impl Evaluator {
 
                     let mut local_vars = HashMap::<String, Expression>::new();
                     for i in 0..args.len() {
-                        local_vars.insert(
-                            procedure.params[i].to_string(),
-                            args[i].clone(),
-                        );
+                        local_vars.insert(procedure.params[i].to_string(), args[i].clone());
                     }
 
+                    // begin procedure scope
+                    self.locals.push(local_vars);
+
                     self.run_ast(&ast);
+
+                    // end procedure scope
+                    self.locals.pop();
                 }
             }
 
             Statement::VariableDeclaration { name, val } => {
                 let _val = (**val).clone();
                 let expr = Expression::Number {
-                    val: evaluate_expression(&_val, &mut self.vars)?,
+                    val: self.evaluate_expression(&_val)?,
                 };
 
-                self.vars.insert(name.to_string(), expr);
+                // check for whether the variable is local or global
+                let scope_depth = self.locals.len();
+                if scope_depth > 0 {
+                    self.locals[scope_depth-1].insert(name.to_string(), expr);
+                } else {
+                    self.globals.insert(name.to_string(), expr);
+                }
             }
 
             Statement::Repeat { count, body } => {
@@ -179,61 +201,67 @@ impl Evaluator {
 
         Ok(())
     }
-}
 
-fn evaluate_expression(
-    expr: &Expression,
-    vars: &mut HashMap<String, Expression>,
-) -> Result<isize, String> {
-    match expr {
-        Expression::Number { val } => Ok(*val),
-        Expression::Variable { name } => match vars.get(name) {
-            Some(e) => match e {
-                Expression::Number { val } => Ok(*val),
-                _ => Err(String::from("Expected number argument")),
-            },
-            None => Err(format!("Variable {} does not exist", name)),
-        },
-        Expression::ArithmeticExpression { postfix } => Ok(evaluate_postfix(postfix, vars)?),
-        _ => Err(String::from("There was an errorrrror")),
-    }
-}
-
-fn evaluate_postfix(
-    postfix: &Vec<Expression>,
-    vars: &HashMap<String, Expression>,
-) -> Result<isize, String> {
-    let mut stack: Vec<isize> = Vec::new();
-    for expr in postfix.iter() {
+    fn evaluate_expression(
+        &self,
+        expr: &Expression,
+    ) -> Result<isize, String> {
         match expr {
-            Expression::Number { val } => stack.push(*val),
-            Expression::Variable { name } => stack.push(match vars.get(name) {
-                Some(e) => match e {
-                    Expression::Number { val } => *val,
-                    _ => return Err("Expected number argument".to_string()),
-                },
-                None => return Err("Error: variable does not exist".to_string()),
-            }),
-            Expression::Operator { op } => {
-                let operand_2 = stack.pop().unwrap();
-                let operand_1 = stack.pop().unwrap();
+            Expression::Number { val } => Ok(*val),
+            Expression::Variable { name } => {
+                for i in (0..self.locals.len()).rev() {
+                    match self.locals[i].get(name) {
+                        Some(e) => return match e {
+                            Expression::Number { val } => Ok(*val),
+                            _ => Err("Expected number argument".to_string()),
+                        },
+                        None => (),
+                    }
+                }
 
-                let result = match op {
-                    Operator::Addition => operand_1 + operand_2,
-                    Operator::Subtraction => operand_1 - operand_2,
-                    Operator::Multiplication => operand_1 * operand_2,
-                    Operator::Division => operand_1 / operand_2,
-                };
-                stack.push(result);
-            }
-            _ => {
-                return Err("reverse polish notation should only contain
-                         numbers, variables and operators"
-                    .to_string())
-            }
+                match self.globals.get(name) {
+                    Some(e) => match e {
+                        Expression::Number { val } => Ok(*val),
+                        _ => Err(String::from("Expected number argument")),
+                    },
+                    None => Err(format!("Variable {} does not exist", name)),
+                }
+            },
+            Expression::ArithmeticExpression { postfix } => Ok(self.evaluate_postfix(postfix)?),
+            _ => Err(String::from("There was an errorrrror")),
         }
     }
-    Ok(stack[0])
+
+    fn evaluate_postfix(
+        &self,
+        postfix: &Vec<Expression>,
+    ) -> Result<isize, String> {
+        let mut stack: Vec<isize> = Vec::new();
+        for expr in postfix.iter() {
+            match expr {
+                Expression::Number { val: _ } | Expression::Variable { name: _ } =>
+                    stack.push(self.evaluate_expression(expr)?),
+                Expression::Operator { op } => {
+                    let operand_2 = stack.pop().unwrap();
+                    let operand_1 = stack.pop().unwrap();
+
+                    let result = match op {
+                        Operator::Addition => operand_1 + operand_2,
+                        Operator::Subtraction => operand_1 - operand_2,
+                        Operator::Multiplication => operand_1 * operand_2,
+                        Operator::Division => operand_1 / operand_2,
+                    };
+                    stack.push(result);
+                }
+                _ => {
+                    return Err("reverse polish notation should only contain
+                             numbers, variables and operators"
+                        .to_string())
+                }
+            }
+        }
+        Ok(stack[0])
+    }
 }
 
 fn get_input() -> String {
@@ -257,9 +285,10 @@ mod tests {
 
     #[test]
     fn evaluate_postfix_test() {
-        let mut vars: HashMap<String, Expression> = HashMap::new();
-        vars.insert("count".to_string(), Expression::Number { val: 10 });
-        vars.insert("size".to_string(), Expression::Number { val: 50 });
+        let mut evaluator = Evaluator::new(false);
+        //let mut vars: HashMap<String, Expression> = HashMap::new();
+        evaluator.globals.insert("count".to_string(), Expression::Number { val: 10 });
+        evaluator.globals.insert("size".to_string(), Expression::Number { val: 50 });
 
         // 10 5 /
         let postfix = vec![
@@ -270,7 +299,7 @@ mod tests {
             },
         ];
 
-        assert_eq!(evaluate_postfix(&postfix, &vars).unwrap(), 2,);
+        assert_eq!(evaluator.evaluate_postfix(&postfix).unwrap(), 2,);
 
         // evaluating 10 * :count + :size / 10
         // in postfix: '10 :count * :size 10 / +'
@@ -294,7 +323,7 @@ mod tests {
             },
         ];
 
-        assert_eq!(evaluate_postfix(&postfix, &vars).unwrap(), 105,);
+        assert_eq!(evaluator.evaluate_postfix(&postfix).unwrap(), 105);
 
         // 10 7 8 * + 2 -
         let postfix = vec![
@@ -313,6 +342,6 @@ mod tests {
             },
         ];
 
-        assert_eq!(evaluate_postfix(&postfix, &vars).unwrap(), 64,);
+        assert_eq!(evaluator.evaluate_postfix(&postfix).unwrap(), 64);
     }
 }
