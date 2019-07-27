@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::default::Default;
 use std::fs;
 use std::io::{self, Write};
 
@@ -31,9 +32,19 @@ fn main() {
                 .help("Print debug information")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("no-turtle")
+                .short("n")
+                .long("no-turtle")
+                .help("do not create turtle or window or startup")
+                .takes_value(false),
+        )
         .get_matches();
 
-    let mut evaluator = Evaluator::new(matches.is_present("debug"));
+    let mut evaluator = Evaluator::new(EvaluatorConfig {
+        turtle: matches.is_present("no-turtle"),
+        debug: matches.is_present("debug"),
+    });
 
     // if a script argument was passed, run the script
     if let Some(file) = matches.value_of("SCRIPT") {
@@ -53,8 +64,13 @@ pub struct Procedure {
     params: Vec<String>,
 }
 
+pub struct EvaluatorConfig {
+    turtle: bool,
+    debug: bool,
+}
+
 pub struct Evaluator {
-    turtle: Turtle,
+    turtle: Option<Turtle>,
     globals: HashMap<String, Expression>,
     // stack of local scopes
     locals: Vec<HashMap<String, Expression>>,
@@ -64,14 +80,14 @@ pub struct Evaluator {
 }
 
 impl Evaluator {
-    pub fn new(debug: bool) -> Self {
+    pub fn new(config: EvaluatorConfig) -> Self {
         Evaluator {
-            turtle: Turtle::new(),
+            turtle: if config.turtle { Some(Turtle::new()) } else { None },
             globals: HashMap::new(),
             locals: Vec::new(),
             procedures: HashMap::new(),
             commands: get_turtle_commands(),
-            debug,
+            debug: config.turtle,
         }
     }
 
@@ -118,10 +134,7 @@ impl Evaluator {
         }
     }
 
-    fn run_statement(
-        &mut self,
-        stmt: &Statement,
-    ) -> Result<(), String> {
+    fn run_statement(&mut self, stmt: &Statement) -> Result<(), String> {
         // currently does not handle varying argument types,
         // only accept LOGO number values as command arguments
         match stmt {
@@ -149,7 +162,14 @@ impl Evaluator {
                     for i in 0..args.len() {
                         _args.push(self.evaluate_expression(&args[i])?);
                     }
-                    (command.func)(&mut self.turtle, &_args);
+
+                    if let None = self.turtle {
+                        self.turtle = Some(Turtle::new());
+                    }
+
+                    if let Some(turtle) = &mut self.turtle {
+                        (command.func)(turtle, &_args);
+                    }
                 } else {
                     let procedure = match self.procedures.get(name) {
                         Some(p) => p,
@@ -186,7 +206,7 @@ impl Evaluator {
                 // check for whether the variable is local or global
                 let scope_depth = self.locals.len();
                 if scope_depth > 0 {
-                    self.locals[scope_depth-1].insert(name.to_string(), expr);
+                    self.locals[scope_depth - 1].insert(name.to_string(), expr);
                 } else {
                     self.globals.insert(name.to_string(), expr);
                 }
@@ -202,19 +222,18 @@ impl Evaluator {
         Ok(())
     }
 
-    fn evaluate_expression(
-        &self,
-        expr: &Expression,
-    ) -> Result<isize, String> {
+    fn evaluate_expression(&self, expr: &Expression) -> Result<isize, String> {
         match expr {
             Expression::Number { val } => Ok(*val),
             Expression::Variable { name } => {
                 for i in (0..self.locals.len()).rev() {
                     match self.locals[i].get(name) {
-                        Some(e) => return match e {
-                            Expression::Number { val } => Ok(*val),
-                            _ => Err("Expected number argument".to_string()),
-                        },
+                        Some(e) => {
+                            return match e {
+                                Expression::Number { val } => Ok(*val),
+                                _ => Err("Expected number argument".to_string()),
+                            }
+                        }
                         None => (),
                     }
                 }
@@ -226,21 +245,19 @@ impl Evaluator {
                     },
                     None => Err(format!("Variable {} does not exist", name)),
                 }
-            },
+            }
             Expression::ArithmeticExpression { postfix } => Ok(self.evaluate_postfix(postfix)?),
             _ => Err(String::from("There was an errorrrror")),
         }
     }
 
-    fn evaluate_postfix(
-        &self,
-        postfix: &Vec<Expression>,
-    ) -> Result<isize, String> {
+    fn evaluate_postfix(&self, postfix: &Vec<Expression>) -> Result<isize, String> {
         let mut stack: Vec<isize> = Vec::new();
         for expr in postfix.iter() {
             match expr {
-                Expression::Number { val: _ } | Expression::Variable { name: _ } =>
-                    stack.push(self.evaluate_expression(expr)?),
+                Expression::Number { val: _ } | Expression::Variable { name: _ } => {
+                    stack.push(self.evaluate_expression(expr)?)
+                }
                 Expression::Operator { op } => {
                     let operand_2 = stack.pop().unwrap();
                     let operand_1 = stack.pop().unwrap();
@@ -285,7 +302,11 @@ mod tests {
 
     #[test]
     fn evaluate_postfix_test() {
-        let mut evaluator = Evaluator::new(false);
+        let config = EvaluatorConfig {
+            turtle: false,
+            debug: false,
+        };
+        let mut evaluator = Evaluator::new(config);
         //let mut vars: HashMap<String, Expression> = HashMap::new();
         evaluator.globals.insert("count".to_string(), Expression::Number { val: 10 });
         evaluator.globals.insert("size".to_string(), Expression::Number { val: 50 });
@@ -299,7 +320,7 @@ mod tests {
             },
         ];
 
-        assert_eq!(evaluator.evaluate_postfix(&postfix).unwrap(), 2,);
+        assert_eq!(evaluator.evaluate_postfix(&postfix).unwrap(), 2);
 
         // evaluating 10 * :count + :size / 10
         // in postfix: '10 :count * :size 10 / +'
