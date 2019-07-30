@@ -698,4 +698,36 @@ mod tests {
             },
         );
     }
+
+    #[test]
+    fn parse_paramaterized_procedure_test() {
+        /* to show_me :x
+         * show :x
+         * end
+         */
+        parse_test(
+            vec![
+                Token::To,
+                Token::Identifier { literal: "show_me".to_string() },
+                Token::Variable { name: "x".to_string() },
+                Token::Identifier { literal: "show".to_string() },
+                Token::Variable { name: "x".to_string() },
+                Token::End
+            ],
+            AST {
+                statements: vec![Statement::ProcedureDeclaration {
+                    name: "show_me".to_string(),
+                    body: AST {
+                        statements: vec![
+                            Statement::ProcedureCall {
+                                name: "show".to_string(),
+                                args: vec![Expression::Variable { name: "x".to_string() }],
+                            },
+                        ]
+                    },
+                    params: vec!["x".to_string()],
+                }],
+            }
+        );
+    }
 }
