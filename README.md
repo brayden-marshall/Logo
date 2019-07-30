@@ -1,10 +1,9 @@
 # Logo
 
-A Logo language interpreter written in Rust. This interpreter supports many basic turtle graphics commands, as well as variables, procedures, loops, and arithmetic expressions. All turtle graphics functionality is handled by the [sunjay/Turtle](github.com/sunjay/Turtle) Rust library.
+A Logo language interpreter written in Rust. This interpreter supports many basic turtle graphics commands, as well as variables, procedures, repeats, and arithmetic expressions. All turtle graphics functionality is handled by the [sunjay/Turtle](github.com/sunjay/Turtle) Rust library.
 
 ## Todo before going public
 
-- [DONE] add support for parameterized procedures
 - polish up error-reporting (a lot):
     - create a new branch for error changes
     - add runtime error types
@@ -12,7 +11,6 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
     - refactor error types and related code into separate file
     - location of statements in file (????) (would need a lot of changes to the lexer including row/column tracking and changing the way that newlines are handled)
     - manually test scenarios to see if messages make sense
-- vet code and cleanup/improve where necessary (we wanna make it look good)
 
 ## Supported Commands
 
@@ -45,16 +43,19 @@ make "angle_1 45
 fd 10 rt :angle_1
 ```
 
-- Procedures (parameters not yet supported):
+- Procedures (supports parameters):
 ```logo
-to draw_circle
+to draw_circle :x :y
+pu
+setxy :x :y
+pd
 repeat 360 [
     forward 5
     rt 1
 ]
 end
 
-draw_circle
+draw_circle -50 -50
 ```
 
 - Arithmetic operations on numbers: `fd 100 + 70 bk 7 * :var - 12`
