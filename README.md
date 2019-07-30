@@ -4,7 +4,7 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
 
 ## Todo before going public
 
-- add support for parameterized procedures
+- [DONE] add support for parameterized procedures
 - polish up error-reporting (a lot):
     - create a new branch for error changes
     - add runtime error types

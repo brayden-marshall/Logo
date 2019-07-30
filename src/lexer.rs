@@ -1,6 +1,7 @@
 use std::default::Default;
 #[allow(unused_imports)]
 use std::iter::FromIterator;
+use std::collections::HashMap;
 
 use regex::Regex;
 
@@ -47,6 +48,17 @@ fn regex(input: &str) -> Regex {
     Regex::new(input).unwrap()
 }
 
+fn get_keywords() -> HashMap<String, Token> {
+    let mut keywords = HashMap::<String, Token>::new();
+
+    keywords.insert(String::from("repeat"), Token::Repeat);
+    keywords.insert(String::from("make"), Token::Make);
+    keywords.insert(String::from("to"), Token::To);
+    keywords.insert(String::from("end"), Token::End);
+
+    keywords
+}
+
 struct TokenDef {
     token: Token,
     regex: Regex,
@@ -72,10 +84,10 @@ const IDENT_REGEX: &str = r"^[a-zA-Z][0-9a-zA-Z_]*";
 fn get_token_definitions() -> Vec<TokenDef> {
     vec![
         // keywords
-        TokenDef::new(Token::Repeat, r"^repeat"),
-        TokenDef::new(Token::Make, r"^make"),
-        TokenDef::new(Token::To, r"^to"),
-        TokenDef::new(Token::End, r"^end"),
+        //TokenDef::new(Token::Repeat, r"^repeat"),
+        //TokenDef::new(Token::Make, r"^make"),
+        //TokenDef::new(Token::To, r"^to"),
+        //TokenDef::new(Token::End, r"^end"),
         // main tokens
         TokenDef::new(
             Token::Number {
@@ -128,6 +140,7 @@ pub struct Lexer<'a> {
     source: &'a str,
     index: usize,
     token_definitions: Vec<TokenDef>,
+    keywords: HashMap<String, Token>,
     whitespace_regex: Regex,
 }
 
@@ -137,6 +150,7 @@ impl<'a> Lexer<'a> {
             source,
             index: 0,
             token_definitions: get_token_definitions(),
+            keywords: get_keywords(),
             whitespace_regex: regex(r"^[\n\t\x20]*"),
         }
     }
@@ -179,8 +193,15 @@ impl<'a> Iterator for Lexer<'a> {
                             &self.source[self.index + 1..self.index + m.end()],
                         ),
                     },
-                    Token::Identifier { literal: _ } => Token::Identifier {
-                        literal: String::from(&self.source[self.index..self.index + m.end()]),
+                    Token::Identifier { literal: _ } => {
+                        let literal = String::from(&self.source[self.index..self.index + m.end()]);
+                        if let Some(tok) = self.keywords.get(&literal) {
+                            tok.clone()
+                        } else {
+                            Token::Identifier {
+                                literal: literal,
+                            }
+                        }
                     },
                     _ => def.token.clone(),
                 };
