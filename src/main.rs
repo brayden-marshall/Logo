@@ -8,10 +8,12 @@ use turtle::Turtle;
 mod commands;
 mod lexer;
 mod parser;
+mod error;
 
 use commands::{get_turtle_commands, TurtleCommand};
 use lexer::{Lexer, Operator, Token};
 use parser::{Expression, Parser, Statement, AST};
+use error::{RuntimeError};
 
 fn main() {
     let matches = App::new("Logo")
@@ -81,7 +83,11 @@ pub struct Evaluator {
 impl Evaluator {
     pub fn new(config: EvaluatorConfig) -> Self {
         Evaluator {
-            turtle: if config.turtle { Some(Turtle::new()) } else { None },
+            turtle: if config.turtle {
+                Some(Turtle::new())
+            } else {
+                None
+            },
             globals: HashMap::new(),
             locals: Vec::new(),
             procedures: HashMap::new(),
@@ -133,13 +139,15 @@ impl Evaluator {
         }
     }
 
-    fn run_statement(&mut self, stmt: &Statement) -> Result<(), String> {
+    fn run_statement(&mut self, stmt: &Statement) -> Result<(), RuntimeError> {
         // currently does not handle varying argument types,
         // only accept LOGO number values as command arguments
         match stmt {
             Statement::ProcedureDeclaration { name, body, params } => {
                 if let Some(_) = self.procedures.get(name) {
-                    return Err(format!("Procedure with name {} already exists.", name));
+                    return Err(RuntimeError::RedeclaredProcedure {
+                        name: name.to_string(),
+                    });
                 }
 
                 self.procedures.insert(
@@ -154,7 +162,9 @@ impl Evaluator {
             Statement::ProcedureCall { name, args } => {
                 if let Some(command) = self.commands.get(name) {
                     if command.arity != args.len() {
-                        return Err("Wrong number of arguments".to_string());
+                        return Err(RuntimeError::ArgCountMismatch {
+                            expected: command.arity,
+                        });
                     }
 
                     let mut _args: Vec<isize> = Vec::new();
@@ -172,11 +182,17 @@ impl Evaluator {
                 } else {
                     let procedure = match self.procedures.get(name) {
                         Some(p) => p,
-                        None => return Err("Use of undeclared procedure.".to_string()),
+                        None => {
+                            return Err(RuntimeError::ProcedureNotFound {
+                                name: name.to_string(),
+                            })
+                        }
                     };
 
                     if args.len() != procedure.params.len() {
-                        return Err("Wrong number of arguments".to_string());
+                        return Err(RuntimeError::ArgCountMismatch {
+                            expected: procedure.params.len(),
+                        });
                     }
 
                     let ast = procedure.ast.clone();
@@ -221,7 +237,7 @@ impl Evaluator {
         Ok(())
     }
 
-    fn evaluate_expression(&self, expr: &Expression) -> Result<isize, String> {
+    fn evaluate_expression(&self, expr: &Expression) -> Result<isize, RuntimeError> {
         match expr {
             Expression::Number { val } => Ok(*val),
             Expression::Variable { name } => {
@@ -230,7 +246,9 @@ impl Evaluator {
                         Some(e) => {
                             return match e {
                                 Expression::Number { val } => Ok(*val),
-                                _ => Err("Expected number argument".to_string()),
+                                _ => Err(RuntimeError::TypeMismatch {
+                                    expected: "Number".to_string(),
+                                }),
                             }
                         }
                         None => (),
@@ -240,17 +258,24 @@ impl Evaluator {
                 match self.globals.get(name) {
                     Some(e) => match e {
                         Expression::Number { val } => Ok(*val),
-                        _ => Err(String::from("Expected number argument")),
+                        _ => Err(RuntimeError::TypeMismatch {
+                            expected: "Number".to_string(),
+                        }),
                     },
-                    None => Err(format!("Variable {} does not exist", name)),
+                    None => Err(RuntimeError::VariableNotFound {
+                        name: name.to_string(),
+                    }),
                 }
             }
             Expression::ArithmeticExpression { postfix } => Ok(self.evaluate_postfix(postfix)?),
-            _ => Err(String::from("There was an errorrrror")),
+            Expression::Operator { op } => Err(RuntimeError::Other(format!(
+                "Encountered unexpected operator {:?}",
+                op
+            ))),
         }
     }
 
-    fn evaluate_postfix(&self, postfix: &Vec<Expression>) -> Result<isize, String> {
+    fn evaluate_postfix(&self, postfix: &Vec<Expression>) -> Result<isize, RuntimeError> {
         let mut stack: Vec<isize> = Vec::new();
         for expr in postfix.iter() {
             match expr {
@@ -270,9 +295,11 @@ impl Evaluator {
                     stack.push(result);
                 }
                 _ => {
-                    return Err("reverse polish notation should only contain
-                             numbers, variables and operators"
-                        .to_string())
+                    return Err(RuntimeError::Other(
+                        "reverse polish notation should only contain numbers,
+                        variables and operators"
+                            .to_string(),
+                    ))
                 }
             }
         }
@@ -286,7 +313,7 @@ fn get_input() -> String {
         Err(e) => {
             eprintln!("{:?}", e);
             panic!(e);
-        },
+        }
         Ok(_) => (),
     }
 
@@ -310,8 +337,12 @@ mod tests {
         };
         let mut evaluator = Evaluator::new(config);
         //let mut vars: HashMap<String, Expression> = HashMap::new();
-        evaluator.globals.insert("count".to_string(), Expression::Number { val: 10 });
-        evaluator.globals.insert("size".to_string(), Expression::Number { val: 50 });
+        evaluator
+            .globals
+            .insert("count".to_string(), Expression::Number { val: 10 });
+        evaluator
+            .globals
+            .insert("size".to_string(), Expression::Number { val: 50 });
 
         // 10 5 /
         let postfix = vec![

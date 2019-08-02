@@ -5,10 +5,10 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
 ## Todo before going public
 
 - polish up error-reporting (a lot):
-    - create a new branch for error changes
-    - add runtime error types
+    - [DONE] create a new branch for error changes
+    - [DONE] add runtime error types
+    - refactor lexer and parser errors into error.rs
     - add proper messages for all error-types
-    - refactor error types and related code into separate file
     - location of statements in file (????) (would need a lot of changes to the lexer including row/column tracking and changing the way that newlines are handled)
     - manually test scenarios to see if messages make sense
 
