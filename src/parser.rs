@@ -1,6 +1,8 @@
 use crate::lexer::{Operator, Token};
+use crate::error::ParseError;
 use std::iter::Peekable;
 use std::slice;
+
 
 /// Statements are any logo 'sentence' that does not evaluate to a value
 #[derive(Debug, PartialEq, Clone)]
@@ -18,15 +20,6 @@ pub enum Expression {
     Operator { op: Operator },
     Number { val: isize },
     Variable { name: String },
-}
-
-#[derive(Debug)]
-pub enum ParseError {
-    EOF,
-    UnexpectedToken(Token),
-    TypeError,
-    ParseInteger(String),
-    MismatchParens,
 }
 
 #[derive(Debug, PartialEq, Clone)]

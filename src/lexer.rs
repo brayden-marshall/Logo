@@ -3,6 +3,8 @@ use std::default::Default;
 use std::iter::FromIterator;
 use std::collections::HashMap;
 
+use crate::error::LexError;
+
 use regex::Regex;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -124,11 +126,6 @@ fn get_token_definitions() -> Vec<TokenDef> {
         TokenDef::new(Token::Operator(Operator::Multiplication), r"^\*"),
         TokenDef::new(Token::Operator(Operator::Division), r"^/"),
     ]
-}
-
-#[derive(Debug)]
-pub enum LexError {
-    UnrecognizedToken,
 }
 
 type LexResult = Result<Token, LexError>;
