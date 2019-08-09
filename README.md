@@ -4,16 +4,10 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
 
 ## Todo before going public
 
-- polish up error-reporting (a lot):
-    - [DONE] create a new branch for error changes
-    - [DONE] add runtime error types
-    - [DONE] refactor lexer and parser errors into error.rs
-    - add proper messages for all error-types
-    - location of statements in file (????) (would need a lot of changes to the lexer including row/column tracking and changing the way that newlines are handled)
-    - manually test scenarios to see if messages make sense
-
 - investigate issue when parsing parentheses:
     - `show 100 + ( 200` does not give unbalanced paren error, and shows `300`
+
+- remove SetFillColor, as it currently has no use
 
 ## Supported Commands
 
@@ -68,6 +62,7 @@ draw_circle -50 -50
 ## Things to implement 
 
 - Comments: `; this is a comment`
-- Fill (fills enclosed shape, fill is not currently implemented in the `turtle` library, so this may be tricky): `fill`
-- Label: `label "something`
-- Control Flow (if, if-else) (need to also implement boolean type)
+
+## Future Implementation Ideas
+
+- Control Flow (if, if-else). Would require implementing boolean types as well.
