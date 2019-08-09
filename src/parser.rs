@@ -1,16 +1,28 @@
-use crate::lexer::{Operator, Token};
 use crate::error::ParseError;
+use crate::lexer::{Operator, Token};
 use std::iter::Peekable;
 use std::slice;
-
 
 /// Statements are any logo 'sentence' that does not evaluate to a value
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    Repeat { count: usize, body: AST },
-    VariableDeclaration { name: String, val: Box<Expression> },
-    ProcedureDeclaration { name: String, body: AST, params: Vec<String> },
-    ProcedureCall { name: String, args: Vec<Expression> },
+    Repeat {
+        count: usize,
+        body: AST,
+    },
+    VariableDeclaration {
+        name: String,
+        val: Box<Expression>,
+    },
+    ProcedureDeclaration {
+        name: String,
+        body: AST,
+        params: Vec<String>,
+    },
+    ProcedureCall {
+        name: String,
+        args: Vec<Expression>,
+    },
 }
 
 /// Expressions are any logo 'sentence' that evaluates to a value
@@ -95,7 +107,9 @@ impl<'a> Parser<'a> {
                     Ok(n) => Ok(n),
                     Err(_) => Err(ParseError::ParseInteger(literal.to_string())),
                 },
-                _ => Err(ParseError::TypeError),
+                _ => Err(ParseError::TypeMismatch {
+                    expected: "Number".to_string(),
+                }),
             },
             None => Err(ParseError::EOF),
         }?;
@@ -134,7 +148,7 @@ impl<'a> Parser<'a> {
             },
             None => Err(ParseError::EOF),
         }?;
-        
+
         // parse parameters if given
         let mut params = Vec::<String>::new();
         while let Some(tok) = self.tokens.peek() {
@@ -142,7 +156,7 @@ impl<'a> Parser<'a> {
                 Token::Variable { name } => {
                     params.push(name.to_string());
                     self.tokens.next();
-                },
+                }
                 _ => break,
             }
         }
@@ -256,7 +270,11 @@ impl<'a> Parser<'a> {
 
                                     Token::Operator(op) => Expression::Operator { op },
 
-                                    _ => return Err(ParseError::TypeError),
+                                    _ => {
+                                        return Err(ParseError::TypeMismatch {
+                                            expected: "Number, Variable, Operator".to_string(),
+                                        })
+                                    }
                                 }),
                                 _ => (),
                             },
@@ -299,7 +317,9 @@ impl<'a> Parser<'a> {
                 Token::Variable { name } => Ok(Expression::Variable {
                     name: name.to_string(),
                 }),
-                _ => Err(ParseError::TypeError),
+                _ => Err(ParseError::TypeMismatch {
+                    expected: "Number".to_string(),
+                }),
             },
             None => Err(ParseError::EOF),
         }?;
@@ -701,26 +721,34 @@ mod tests {
         parse_test(
             vec![
                 Token::To,
-                Token::Identifier { literal: "show_me".to_string() },
-                Token::Variable { name: "x".to_string() },
-                Token::Identifier { literal: "show".to_string() },
-                Token::Variable { name: "x".to_string() },
-                Token::End
+                Token::Identifier {
+                    literal: "show_me".to_string(),
+                },
+                Token::Variable {
+                    name: "x".to_string(),
+                },
+                Token::Identifier {
+                    literal: "show".to_string(),
+                },
+                Token::Variable {
+                    name: "x".to_string(),
+                },
+                Token::End,
             ],
             AST {
                 statements: vec![Statement::ProcedureDeclaration {
                     name: "show_me".to_string(),
                     body: AST {
-                        statements: vec![
-                            Statement::ProcedureCall {
-                                name: "show".to_string(),
-                                args: vec![Expression::Variable { name: "x".to_string() }],
-                            },
-                        ]
+                        statements: vec![Statement::ProcedureCall {
+                            name: "show".to_string(),
+                            args: vec![Expression::Variable {
+                                name: "x".to_string(),
+                            }],
+                        }],
                     },
                     params: vec!["x".to_string()],
                 }],
-            }
+            },
         );
     }
 }

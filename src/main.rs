@@ -6,14 +6,14 @@ use clap::{App, Arg};
 use turtle::Turtle;
 
 mod commands;
+mod error;
 mod lexer;
 mod parser;
-mod error;
 
 use commands::{get_turtle_commands, TurtleCommand};
+use error::RuntimeError;
 use lexer::{Lexer, Operator, Token};
 use parser::{Expression, Parser, Statement, AST};
-use error::{RuntimeError};
 
 fn main() {
     let matches = App::new("Logo")
@@ -104,7 +104,7 @@ impl Evaluator {
             match lex_result {
                 Ok(tok) => tokens.push(tok),
                 Err(e) => {
-                    eprintln!("{:?}", e);
+                    eprintln!("{}", e);
                     return;
                 }
             }
@@ -127,14 +127,14 @@ impl Evaluator {
                 }
                 self.run_ast(&ast);
             }
-            Err(e) => eprintln!("Error: {:?}", e),
+            Err(e) => eprintln!("{}", e),
         }
     }
 
     fn run_ast(&mut self, ast: &AST) {
         for stmt in ast.statements.iter() {
             if let Err(e) = self.run_statement(stmt) {
-                eprintln!("{:?}", e);
+                eprintln!("{}", e);
             }
         }
     }
@@ -311,7 +311,7 @@ fn get_input() -> String {
     print!(">> ");
     match io::stdout().flush() {
         Err(e) => {
-            eprintln!("{:?}", e);
+            eprintln!("{}", e);
             panic!(e);
         }
         Ok(_) => (),

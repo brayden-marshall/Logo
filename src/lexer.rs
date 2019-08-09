@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::default::Default;
+use std::fmt;
 #[allow(unused_imports)]
 use std::iter::FromIterator;
-use std::collections::HashMap;
 
 use crate::error::LexError;
 
@@ -24,6 +25,16 @@ impl Operator {
             Addition | Subtraction => 1,
         }
     }
+
+    pub fn literal(&self) -> String {
+        use Operator::*;
+        match self {
+            Addition => "+".to_string(),
+            Subtraction => "-".to_string(),
+            Multiplication => "*".to_string(),
+            Division => "/".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,6 +55,31 @@ pub enum Token {
     RBracket,
     LParen,
     RParen,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use Token::*;
+        write!(
+            formatter,
+            "{}",
+            match self {
+                Operator(op) => op.literal(),
+                Number { literal } => literal.to_string(),
+                Word { literal } => literal.to_string(),
+                Variable { name } => format!(":{}", name),
+                Identifier { literal } => literal.to_string(),
+                Repeat => "repeat".to_string(),
+                Make => "make".to_string(),
+                To => "to".to_string(),
+                End => "end".to_string(),
+                LBracket => "[".to_string(),
+                RBracket => "]".to_string(),
+                LParen => "(".to_string(),
+                RParen => ")".to_string(),
+            }
+        )
+    }
 }
 
 fn regex(input: &str) -> Regex {
@@ -195,11 +231,9 @@ impl<'a> Iterator for Lexer<'a> {
                         if let Some(tok) = self.keywords.get(&literal) {
                             tok.clone()
                         } else {
-                            Token::Identifier {
-                                literal: literal,
-                            }
+                            Token::Identifier { literal: literal }
                         }
-                    },
+                    }
                     _ => def.token.clone(),
                 };
 
@@ -322,16 +356,16 @@ mod tests {
         lex_test(
             "hello HELLO hello_there N_UM53r5",
             vec![
-                Token::Identifier{
+                Token::Identifier {
                     literal: String::from("hello"),
                 },
-                Token::Identifier{
+                Token::Identifier {
                     literal: String::from("HELLO"),
                 },
-                Token::Identifier{
+                Token::Identifier {
                     literal: String::from("hello_there"),
                 },
-                Token::Identifier{
+                Token::Identifier {
                     literal: String::from("N_UM53r5"),
                 },
             ],

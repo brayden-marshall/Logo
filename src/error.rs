@@ -1,7 +1,6 @@
 use crate::lexer::Token;
 use std::fmt;
 
-
 #[derive(Debug)]
 pub enum RuntimeError {
     RedeclaredProcedure { name: String },
@@ -13,37 +12,58 @@ pub enum RuntimeError {
 }
 
 impl fmt::Display for RuntimeError {
-
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(formatter, "{}", match self {
-            RuntimeError::RedeclaredProcedure { name } => "",
-            RuntimeError::ProcedureNotFound { name } => "",
-            RuntimeError::VariableNotFound { name } => "",
-            RuntimeError::ArgCountMismatch { expected } => "",
-            RuntimeError::TypeMismatch { expected } => "",
-            RuntimeError::Other(message) => message,
-        })
+        write!(
+            formatter,
+            "{}",
+            match self {
+                RuntimeError::RedeclaredProcedure { name } => {
+                    format!("Procedure '{}' has already been declared", name)
+                }
+                RuntimeError::ProcedureNotFound { name } => {
+                    format!("Procedure '{}' does not exist", name)
+                }
+                RuntimeError::VariableNotFound { name } => {
+                    format!("Variable :{} has not been declared", name)
+                }
+                RuntimeError::ArgCountMismatch { expected } => {
+                    format!("Wrong number of arguments, expected {}", expected)
+                }
+                RuntimeError::TypeMismatch { expected } => {
+                    format!("Unexpected type found, expected {}", expected)
+                }
+                RuntimeError::Other(message) => message.to_string(),
+            }
+        )
     }
 }
 
 #[derive(Debug)]
 pub enum ParseError {
+    TypeMismatch { expected: String },
     EOF,
     UnexpectedToken(Token),
-    TypeError,
     ParseInteger(String),
     MismatchParens,
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(formatter, "{}", match self {
-            ParseError::EOF => "",
-            ParseError::UnexpectedToken(tok) => "",
-            ParseError::TypeError => "",
-            ParseError::ParseInteger(n) => "",
-            ParseError::MismatchParens => "",
-        })
+        write!(
+            formatter,
+            "{}",
+            match self {
+                ParseError::EOF => String::from("Reached EOF (End of file) while parsing"),
+                ParseError::UnexpectedToken(tok) => format!("Unexpected token: {}", tok),
+                ParseError::TypeMismatch { expected } => {
+                    format!("Found unexpected type while parsing, expected {}", expected)
+                }
+                ParseError::ParseInteger(n) => format!("Error while parsing integer: {}", n),
+                ParseError::MismatchParens => {
+                    String::from("Found unbalanced parentheses while parsing")
+                }
+            }
+        )
     }
 }
 
@@ -54,8 +74,12 @@ pub enum LexError {
 
 impl fmt::Display for LexError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(formatter, "{}", match self {
-            LexError::UnrecognizedToken => "",
-        })
+        write!(
+            formatter,
+            "{}",
+            match self {
+                LexError::UnrecognizedToken => "Found unexpected token during lexing phase",
+            }
+        )
     }
 }

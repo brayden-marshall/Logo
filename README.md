@@ -12,6 +12,9 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
     - location of statements in file (????) (would need a lot of changes to the lexer including row/column tracking and changing the way that newlines are handled)
     - manually test scenarios to see if messages make sense
 
+- investigate issue when parsing parentheses:
+    - `show 100 + ( 200` does not give unbalanced paren error, and shows `300`
+
 ## Supported Commands
 
 - Forward: `fd | forward`
