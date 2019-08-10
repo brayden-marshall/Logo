@@ -4,9 +4,6 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
 
 ## Todo before going public
 
-- investigate issue when parsing parentheses:
-    - `show 100 + ( 200` does not give unbalanced paren error, and shows `300`
-
 - DOCUMENT ALL OF THE THINGS!!! USE THE RUSTDOC THING!!!
     - documentation is the lord and I am it's disciple
     - I bow to the documentation as others have done before me
