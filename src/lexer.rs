@@ -188,6 +188,19 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    pub fn collect_tokens(&mut self) -> Result<Vec<Token>, LexError>{
+        let mut tokens: Vec<Token> = Vec::new();
+        while let Some(lex_result) = self.next() {
+            match lex_result {
+                Ok(tok) => tokens.push(tok),
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+        Ok(tokens)
+    }
+
     // increasing internal index to the first non-whitespace character
     fn skip_whitespace(&mut self) {
         if let Some(m) = self.whitespace_regex.find(&self.source[self.index..]) {

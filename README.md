@@ -7,8 +7,6 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
 - investigate issue when parsing parentheses:
     - `show 100 + ( 200` does not give unbalanced paren error, and shows `300`
 
-- make `show` and other non-turtle related commands not spawn a turtle when using the --no-turtle CLI option
-
 - DOCUMENT ALL OF THE THINGS!!! USE THE RUSTDOC THING!!!
     - documentation is the lord and I am it's disciple
     - I bow to the documentation as others have done before me

@@ -44,7 +44,7 @@ pub enum ParseError {
     EOF,
     UnexpectedToken(Token),
     ParseInteger(String),
-    MismatchParens,
+    UnbalancedParens,
 }
 
 impl fmt::Display for ParseError {
@@ -59,7 +59,7 @@ impl fmt::Display for ParseError {
                     format!("Found unexpected type while parsing, expected {}", expected)
                 }
                 ParseError::ParseInteger(n) => format!("Error while parsing integer: {}", n),
-                ParseError::MismatchParens => {
+                ParseError::UnbalancedParens => {
                     String::from("Found unbalanced parentheses while parsing")
                 }
             }
@@ -78,7 +78,9 @@ impl fmt::Display for LexError {
             formatter,
             "{}",
             match self {
-                LexError::UnrecognizedToken => "Found unexpected token during lexing phase",
+                LexError::UnrecognizedToken => {
+                    String::from("Found unexpected token during lexing phase")
+                }
             }
         )
     }

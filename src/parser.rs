@@ -87,6 +87,9 @@ impl<'a> Parser<'a> {
                 Token::Variable { name: _ } | Token::Number { literal: _ } => {
                     args.push(self.parse_expression()?)
                 }
+                Token::LParen => {
+                    args.push(Parser::parse_arithmetic_expression(&mut self.tokens, None)?)
+                }
                 _ => break,
             }
         }
@@ -250,7 +253,7 @@ impl<'a> Parser<'a> {
 
                     Token::RParen => loop {
                         if operator_stack.is_empty() {
-                            return Err(ParseError::MismatchParens);
+                            return Err(ParseError::UnbalancedParens);
                         }
 
                         match operator_stack[operator_stack.len() - 1] {
@@ -287,8 +290,11 @@ impl<'a> Parser<'a> {
 
         while !operator_stack.is_empty() {
             if let Some(popped) = operator_stack.pop() {
-                if let Token::Operator(op) = popped {
-                    output.push(Expression::Operator { op });
+                match popped {
+                    Token::Operator(op) => output.push(Expression::Operator { op }),
+                    Token::LParen | Token::RParen =>
+                        return Err(ParseError::UnbalancedParens),
+                    _ => (),
                 }
             }
         }

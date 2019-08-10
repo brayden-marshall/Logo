@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::fs;
 
 use clap::{App, Arg};
-use turtle::Turtle;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use turtle::Turtle;
 
 mod commands;
 mod error;
@@ -13,7 +13,7 @@ mod parser;
 
 use commands::{get_turtle_commands, TurtleCommand};
 use error::RuntimeError;
-use lexer::{Lexer, Operator, Token};
+use lexer::{Lexer, Operator};
 use parser::{Expression, Parser, Statement, AST};
 
 fn main() {
@@ -50,32 +50,43 @@ fn main() {
 
     // if a script argument was passed, run the script
     if let Some(file) = matches.value_of("SCRIPT") {
-        evaluator.run_program(&fs::read_to_string(file).unwrap());
+        print_program_output(evaluator.run_program(match &fs::read_to_string(file) {
+            Ok(input) => input,
+            Err(e) => {
+                eprint!("Error reading file: {}\n", e);
+                std::process::exit(1);
+            },
+        }));
     }
 
-    // setting up rustyline editor
+    // running interactive shell using the rustyline crate
     let mut rl = Editor::<()>::new();
-
-    // running interactive shell
     loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                evaluator.run_program(&line);
-            },
+                print_program_output(evaluator.run_program(&line));
+            }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
-            },
+            }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
                 std::process::exit(1);
-            },
+            }
             Err(err) => {
                 println!("Error: {:?}", err);
-                break
+                break;
             }
         }
     }
+}
+
+fn print_program_output(program_result: Result<String, String>) {
+    match program_result {
+        Ok(output) => print!("{}", output),
+        Err(output) => eprint!("{}", output),
+    };
 }
 
 pub struct Procedure {
@@ -114,25 +125,43 @@ impl Evaluator {
         }
     }
 
-    pub fn run_program(&mut self, input: &str) {
-        // lexing input and returning vector of tokens
+    pub fn run_program(&mut self, input: &str) -> Result<String, String> {
+        let mut program_output = String::new();
+
         let mut lexer = Lexer::new(&input);
-        let mut tokens: Vec<Token> = Vec::new();
-        while let Some(lex_result) = lexer.next() {
-            match lex_result {
-                Ok(tok) => tokens.push(tok),
-                Err(e) => {
-                    eprintln!("{}", e);
-                    return;
-                }
-            }
-        }
+        let tokens = match lexer.collect_tokens() {
+            Ok(t) => Ok(t),
+            Err(e) => Err(format!("{}Error: {}\n", program_output, e)),
+        }?;
 
         if self.debug {
-            println!("Lexing phase completed without error");
-            println!("{:?}", tokens);
+            // append lexing debug info onto output
+            program_output = format!(
+                "{}Lexing phase completed without error\n{:?}\n",
+                program_output, tokens,
+            );
         }
 
+        let mut parser = Parser::new(&tokens);
+        let ast = match parser.build_ast() {
+            Ok(ast) => Ok(ast),
+            Err(e) => Err(format!("{}{}", program_output, e)),
+        }?;
+
+        if self.debug {
+            // append parsing debug info onto output
+            program_output = format!(
+                "{}Parsing phase completed without error\n{:?}\n",
+                program_output, ast,
+            );
+        }
+
+        match self.run_ast(&ast) {
+            Ok(_) => Ok(program_output),
+            Err(output) => Err(format!("{}{}", program_output, output)),
+        }
+
+        /*
         // building the AST out of the tokens and running the program
         // based off of the AST
         let mut parser = Parser::new(&tokens);
@@ -140,21 +169,29 @@ impl Evaluator {
         match parser.build_ast() {
             Ok(ast) => {
                 if self.debug {
-                    println!("Parsing phase completed without error");
-                    println!("{:?}", ast);
+                    // append parsing debug info onto output
+                    program_output = format!(
+                        "{}Parsing phase completed without error\n{:?}\n",
+                        program_output, ast,
+                    );
                 }
-                self.run_ast(&ast);
+                match self.run_ast(&ast) {
+                    Ok(_) => Ok(program_output),
+                    Err(output) => Err(format!("{}{}", program_output, output)),
+                }
             }
-            Err(e) => eprintln!("{}", e),
+            Err(e) => Err(format!("{}Error: {}\n", program_output, e)),
         }
+        */
     }
 
-    fn run_ast(&mut self, ast: &AST) {
+    fn run_ast(&mut self, ast: &AST) -> Result<(), RuntimeError> {
         for stmt in ast.statements.iter() {
             if let Err(e) = self.run_statement(stmt) {
-                eprintln!("{}", e);
+                return Err(e);
             }
         }
+        Ok(())
     }
 
     fn run_statement(&mut self, stmt: &Statement) -> Result<(), RuntimeError> {
@@ -223,7 +260,7 @@ impl Evaluator {
                     // begin procedure scope
                     self.locals.push(local_vars);
 
-                    self.run_ast(&ast);
+                    self.run_ast(&ast)?;
 
                     // end procedure scope
                     self.locals.pop();
@@ -247,7 +284,7 @@ impl Evaluator {
 
             Statement::Repeat { count, body } => {
                 for _ in 0..*count {
-                    self.run_ast(body);
+                    self.run_ast(body)?;
                 }
             }
         }
