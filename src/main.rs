@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::fs;
-use std::io::{self, Write};
 
 use clap::{App, Arg};
 use turtle::Turtle;
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 mod commands;
 mod error;
@@ -52,11 +53,28 @@ fn main() {
         evaluator.run_program(&fs::read_to_string(file).unwrap());
     }
 
+    // setting up rustyline editor
+    let mut rl = Editor::<()>::new();
+
     // running interactive shell
     loop {
-        let input = get_input();
-
-        evaluator.run_program(&input);
+        let readline = rl.readline(">> ");
+        match readline {
+            Ok(line) => {
+                evaluator.run_program(&line);
+            },
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+            },
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                std::process::exit(1);
+            },
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break
+            }
+        }
     }
 }
 
@@ -305,24 +323,6 @@ impl Evaluator {
         }
         Ok(stack[0])
     }
-}
-
-fn get_input() -> String {
-    print!(">> ");
-    match io::stdout().flush() {
-        Err(e) => {
-            eprintln!("{}", e);
-            panic!(e);
-        }
-        Ok(_) => (),
-    }
-
-    let mut input = String::new();
-    io::stdin()
-        .read_line(&mut input)
-        .expect("Failed to read user input");
-
-    input.trim().to_string()
 }
 
 #[cfg(test)]

@@ -7,7 +7,13 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
 - investigate issue when parsing parentheses:
     - `show 100 + ( 200` does not give unbalanced paren error, and shows `300`
 
-- remove SetFillColor, as it currently has no use
+- make `show` and other non-turtle related commands not spawn a turtle when using the --no-turtle CLI option
+
+- DOCUMENT ALL OF THE THINGS!!! USE THE RUSTDOC THING!!!
+    - documentation is the lord and I am it's disciple
+    - I bow to the documentation as others have done before me
+    - my life belongs to documentation and I would have it no other way
+    - praise be to the documentation
 
 ## Supported Commands
 
@@ -27,7 +33,6 @@ A Logo language interpreter written in Rust. This interpreter supports many basi
 
 - SetPenSize: `setpensize 20`
 - SetPenColor: `setpencolor 255 0 0 setpc 123 123 123`
-- SetFillColor (shape filling): `setfillcolor 255 0 0 setfc 123 123 123`
 - SetScreenColor: `setscreencolor 255 0 0 setsc 123 123 123`
 - SetHeading: `setheading 0 seth 0`
 - SetXY: `setxy 60 60`

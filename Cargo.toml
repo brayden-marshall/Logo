@@ -6,5 +6,6 @@ edition = "2018"
 
 [dependencies]
 turtle = "1.0.0-rc.2"
+rustyline = "5.0.1"
 regex = "1"
 clap = "~2.33"
