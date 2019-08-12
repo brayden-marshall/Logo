@@ -65,6 +65,7 @@ fn main() {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
+                rl.add_history_entry(line.as_str());
                 print_program_output(evaluator.run_program(&line));
             }
             Err(ReadlineError::Interrupted) => {
