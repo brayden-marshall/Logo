@@ -2,22 +2,18 @@
 
 A Logo language interpreter written in Rust. This interpreter supports many basic turtle graphics commands, as well as variables, procedures, repeats, and arithmetic expressions. All turtle graphics functionality is handled by the [sunjay/Turtle](github.com/sunjay/Turtle) Rust library.
 
-## Todo before going public
-
-- write a getting started section for the README.md
-
 ## Getting Started
 
 Before you can use Logo, you need to install Rust and Cargo. You can find instructions on how to do that [here](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
 To install:
 - Clone this repository onto your local workstation `git clone github.com/brayden-marshall/logo`
-- You can then run the interpreter with the command `cargo build` (it will take a minute or so to install dependencies)
+- You can then compile the source code with the command `cargo build` (it will take a minute or so to install dependencies)
 - At this point you should be able to run the interpreter with the command `cargo run`
 
 If you have never heard of Logo or turtle graphics before, you can familiarize yourself by checking out [this](http://cs.brown.edu/courses/bridge/1997/Resources/LogoTutorial.html) tutorial.
 
-All supported commands are listed below, with code samples.
+All supported commands and language structures are listed below, with code samples.
 
 ## Supported Commands
 
