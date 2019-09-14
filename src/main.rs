@@ -69,14 +69,14 @@ fn main() {
                 print_program_output(evaluator.run_program(&line));
             }
             Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
+                eprintln!("CTRL-C");
             }
             Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
+                eprintln!("CTRL-D");
                 std::process::exit(1);
             }
             Err(err) => {
-                println!("Error: {:?}", err);
+                eprintln!("Error: {:?}", err);
                 break;
             }
         }
