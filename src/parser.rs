@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
                     Err(_) => Err(ParseError::ParseInteger(literal.to_string())),
                 },
                 _ => Err(ParseError::TypeMismatch {
-                    expected: "Number".to_string(),
+                    expected: "number".to_string(),
                 }),
             },
             None => Err(ParseError::EOF),
