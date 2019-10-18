@@ -1,0 +1,23 @@
+to hexagon :side_length
+repeat 6 [
+    fd :side_length
+    rt 60
+]
+end
+
+to hexagon_star :gap_size
+repeat 3 [
+    make "count 1
+    repeat 10 [
+        hexagon :count * :gap_size
+        make "count :count + 1
+    ]
+    lt 120
+]
+end
+
+to main
+hexagon_star 10
+end
+
+main
