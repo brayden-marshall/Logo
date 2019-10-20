@@ -180,7 +180,8 @@ impl Evaluator {
             }
 
             Statement::Repeat { count, body } => {
-                for _ in 0..*count {
+                let _count = self.evaluate_expression(count)?;
+                for _ in 0.._count {
                     self.run_ast(body)?;
                 }
             }

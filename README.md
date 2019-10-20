@@ -75,10 +75,7 @@ end
 draw_circle -50 -50
 ```
 
-## Things to implement 
-
-- Comments: `; this is a comment`
-
 ## Future Implementation Ideas
 
+- Comments: `; this is a comment`
 - Control Flow (if, if-else). Would require implementing boolean types as well.

@@ -7,7 +7,7 @@ use std::slice;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Repeat {
-        count: usize,
+        count: Expression,
         body: AST,
     },
     VariableDeclaration {
@@ -104,18 +104,20 @@ impl<'a> Parser<'a> {
         let mut body: Vec<Statement> = Vec::new();
 
         // check that the next number is a number, and parse it
-        let count: usize = match self.tokens.next() {
-            Some(tok) => match tok {
-                Token::Number { literal } => match literal.parse() {
-                    Ok(n) => Ok(n),
-                    Err(_) => Err(ParseError::ParseInteger(literal.to_string())),
-                },
-                _ => Err(ParseError::TypeMismatch {
-                    expected: "number".to_string(),
-                }),
-            },
-            None => Err(ParseError::EOF),
-        }?;
+        //let count: usize = match self.tokens.next() {
+        //    Some(tok) => match tok {
+        //        Token::Number { literal } => match literal.parse() {
+        //            Ok(n) => Ok(n),
+        //            Err(_) => Err(ParseError::ParseInteger(literal.to_string())),
+        //        },
+        //        _ => Err(ParseError::TypeMismatch {
+        //            expected: "number".to_string(),
+        //        }),
+        //    },
+        //    None => Err(ParseError::EOF),
+        //}?;
+
+        let count: Expression = self.parse_expression()?;
 
         // check for a left bracket to start the body of repeat command
         match self.tokens.next() {
@@ -446,7 +448,7 @@ mod tests {
             ],
             AST {
                 statements: vec![Statement::Repeat {
-                    count: 10,
+                    count: Expression::Number { val: 10 },
                     body: AST {
                         statements: vec![Statement::ProcedureCall {
                             name: "forward".to_string(),
@@ -490,7 +492,7 @@ mod tests {
             ],
             AST {
                 statements: vec![Statement::Repeat {
-                    count: 10,
+                    count: Expression::Number { val: 10 },
                     body: AST {
                         statements: vec![
                             Statement::ProcedureCall {
@@ -498,7 +500,7 @@ mod tests {
                                 args: vec![Expression::Number { val: 50 }],
                             },
                             Statement::Repeat {
-                                count: 45,
+                                count: Expression::Number { val: 45 },
                                 body: AST {
                                     statements: vec![Statement::ProcedureCall {
                                         name: "right".to_string(),
@@ -702,7 +704,7 @@ mod tests {
                                 args: vec![Expression::Number { val: 100 }],
                             },
                             Statement::Repeat {
-                                count: 10,
+                                count: Expression::Number { val: 10 },
                                 body: AST {
                                     statements: vec![Statement::ProcedureCall {
                                         name: "right".to_string(),
