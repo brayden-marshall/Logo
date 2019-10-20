@@ -3,17 +3,12 @@ use turtle::Turtle;
 
 use crate::commands::{get_turtle_commands, TurtleCommand};
 use crate::error::RuntimeError;
-use crate::lexer::{Lexer, Operator};
-use crate::parser::{Expression, Parser, Statement, AST};
+use crate::lexer::Operator;
+use crate::parser::{Expression, Statement, AST};
 
 pub struct Procedure {
     ast: AST,
     params: Vec<String>,
-}
-
-pub struct EvaluatorConfig {
-    pub turtle: bool,
-    pub debug: bool,
 }
 
 pub struct Evaluator {
@@ -23,15 +18,14 @@ pub struct Evaluator {
     locals: Vec<HashMap<String, Expression>>,
     procedures: HashMap<String, Procedure>,
     commands: HashMap<String, TurtleCommand>,
-    debug: bool,
 }
 
 impl Evaluator {
     /// Creates a new Evaluator object, including the memory (as HashMaps) to store
     /// variables and procedures.
-    pub fn new(config: EvaluatorConfig) -> Self {
+    pub fn new(create_turtle: bool) -> Self {
         Evaluator {
-            turtle: if config.turtle {
+            turtle: if create_turtle {
                 Some(Turtle::new())
             } else {
                 None
@@ -40,51 +34,10 @@ impl Evaluator {
             locals: Vec::new(),
             procedures: HashMap::new(),
             commands: get_turtle_commands(),
-            debug: config.debug,
         }
     }
 
-    pub fn run_program(&mut self, input: &str) -> Result<String, String> {
-        let mut program_output = String::new();
-
-        // lexing phase
-        let mut lexer = Lexer::new(&input);
-        let tokens = match lexer.collect_tokens() {
-            Ok(t) => Ok(t),
-            Err(e) => Err(format!("{}Error: {}\n", program_output, e)),
-        }?;
-
-        if self.debug {
-            // append lexing debug info onto output
-            program_output = format!(
-                "{}Lexing phase completed without error\n{:?}\n",
-                program_output, tokens,
-            );
-        }
-
-        // parsing phase
-        let mut parser = Parser::new(&tokens);
-        let ast = match parser.build_ast() {
-            Ok(ast) => Ok(ast),
-            Err(e) => Err(format!("{}{}", program_output, e)),
-        }?;
-
-        if self.debug {
-            // append parsing debug info onto output
-            program_output = format!(
-                "{}Parsing phase completed without error\n{:?}\n",
-                program_output, ast,
-            );
-        }
-
-        // evaluation phase
-        match self.run_ast(&ast) {
-            Ok(_) => Ok(program_output),
-            Err(output) => Err(format!("{}{}", program_output, output)),
-        }
-    }
-
-    fn run_ast(&mut self, ast: &AST) -> Result<(), RuntimeError> {
+    pub fn run_ast(&mut self, ast: &AST) -> Result<(), RuntimeError> {
         for stmt in ast.statements.iter() {
             self.run_statement(stmt)?;
         }
@@ -194,6 +147,7 @@ impl Evaluator {
         match expr {
             Expression::Number { val } => Ok(*val),
             Expression::Variable { name } => {
+                // check for variable in local scope first
                 for i in 0..self.locals.len() {
                     match self.locals[i].get(name) {
                         Some(e) => return self.evaluate_expression(e),
@@ -201,19 +155,17 @@ impl Evaluator {
                     }
                 }
 
+                // check in global scope if variable wasn't found
                 match self.globals.get(name) {
-                    Some(e) => match e {
-                        Expression::Number { val } => Ok(*val),
-                        _ => Err(RuntimeError::TypeMismatch {
-                            expected: "Number".to_string(),
-                        }),
-                    },
+                    Some(e) => self.evaluate_expression(e),
                     None => Err(RuntimeError::VariableNotFound {
                         name: name.to_string(),
                     }),
                 }
-            }
+            },
             Expression::ArithmeticExpression { postfix } => Ok(self.evaluate_postfix(postfix)?),
+
+            // this case should not be reached under normal circumstances
             Expression::Operator { op } => Err(RuntimeError::Other(format!(
                 "Encountered unexpected operator {:?}",
                 op
@@ -261,11 +213,7 @@ mod tests {
 
     #[test]
     fn evaluate_postfix_test() {
-        let config = EvaluatorConfig {
-            turtle: false,
-            debug: false,
-        };
-        let mut evaluator = Evaluator::new(config);
+        let mut evaluator = Evaluator::new(false);
         //let mut vars: HashMap<String, Expression> = HashMap::new();
         evaluator
             .globals

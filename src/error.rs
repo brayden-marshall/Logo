@@ -7,7 +7,6 @@ pub enum RuntimeError {
     ProcedureNotFound { name: String },
     VariableNotFound { name: String },
     ArgCountMismatch { expected: usize },
-    TypeMismatch { expected: String },
     Other(String),
 }
 
@@ -28,9 +27,6 @@ impl fmt::Display for RuntimeError {
                 }
                 RuntimeError::ArgCountMismatch { expected } => {
                     format!("Wrong number of arguments, expected {}", expected)
-                }
-                RuntimeError::TypeMismatch { expected } => {
-                    format!("Unexpected type found, expected {}", expected)
                 }
                 RuntimeError::Other(message) => message.to_string(),
             }

@@ -221,7 +221,6 @@ impl<'a> Parser<'a> {
         T: Iterator<Item = &'a Token>,
     {
         let mut operator_stack: Vec<Token> = Vec::new();
-        //let mut output: Vec<Expression> = vec![first];
         let mut output: Vec<Expression> = match first {
             Some(expr) => vec![expr],
             None => vec![],
@@ -279,6 +278,8 @@ impl<'a> Parser<'a> {
                                 break;
                             }
                             _ => match operator_stack.pop() {
+                                // can't use parse_expression to cover all options here because the
+                                // operator is a special case
                                 Some(tok) => output.push(match tok {
                                     Token::Number { literal } => {
                                         Parser::parse_number(literal.to_string())?

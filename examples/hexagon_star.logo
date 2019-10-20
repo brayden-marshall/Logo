@@ -18,6 +18,7 @@ end
 
 to main
 hexagon_star 10
+ht
 end
 
 main
