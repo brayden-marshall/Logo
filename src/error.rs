@@ -42,7 +42,7 @@ impl fmt::Display for RuntimeError {
 pub enum ParseError {
     TypeMismatch { expected: String },
     EOF,
-    UnexpectedToken(Token),
+    UnexpectedToken(Token, Vec<Token>),
     ParseInteger(String),
     UnbalancedParens,
 }
@@ -54,14 +54,23 @@ impl fmt::Display for ParseError {
             "{}",
             match self {
                 ParseError::EOF => String::from("Reached EOF (End of file) while parsing"),
-                ParseError::UnexpectedToken(tok) => format!("Unexpected token: {}", tok),
+                ParseError::UnexpectedToken(unexpected, expected) => {
+                    let mut s = format!("Unexpected token: {}. Expected: ", unexpected);
+                    for tok in expected {
+                        s.push_str(&tok.to_string());
+                        s.push_str(", ");
+                    }
+                    // strip trailing comma for readability
+                    s.truncate(s.len()-2);
+                    s
+                },
                 ParseError::TypeMismatch { expected } => {
                     format!("Found unexpected type while parsing, expected {}", expected)
-                }
+                },
                 ParseError::ParseInteger(n) => format!("Error while parsing integer: {}", n),
                 ParseError::UnbalancedParens => {
                     String::from("Found unbalanced parentheses while parsing")
-                }
+                },
             }
         )
     }

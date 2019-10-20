@@ -66,16 +66,27 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement(&mut self, token: &Token) -> Result<Statement, ParseError> {
+        use Token::*;
         match token {
-            Token::Repeat => self.parse_repeat(),
+            Repeat => self.parse_repeat(),
 
-            Token::Make => self.parse_variable_declaration(),
+            Make => self.parse_variable_declaration(),
 
-            Token::To => self.parse_procedure_declaration(),
+            To => self.parse_procedure_declaration(),
 
-            Token::Identifier { literal } => self.parse_procedure_call(literal),
+            Identifier { literal } => self.parse_procedure_call(literal),
 
-            _ => Err(ParseError::UnexpectedToken(token.clone())),
+            _ => Err(ParseError::UnexpectedToken(
+                token.clone(),
+                vec![
+                    Repeat,
+                    Make,
+                    To,
+                    Identifier {
+                        literal: "".to_string(),
+                    },
+                ],
+            )),
         }
     }
 
@@ -103,27 +114,18 @@ impl<'a> Parser<'a> {
     fn parse_repeat(&mut self) -> Result<Statement, ParseError> {
         let mut body: Vec<Statement> = Vec::new();
 
-        // check that the next number is a number, and parse it
-        //let count: usize = match self.tokens.next() {
-        //    Some(tok) => match tok {
-        //        Token::Number { literal } => match literal.parse() {
-        //            Ok(n) => Ok(n),
-        //            Err(_) => Err(ParseError::ParseInteger(literal.to_string())),
-        //        },
-        //        _ => Err(ParseError::TypeMismatch {
-        //            expected: "number".to_string(),
-        //        }),
-        //    },
-        //    None => Err(ParseError::EOF),
-        //}?;
-
         let count: Expression = self.parse_expression()?;
 
         // check for a left bracket to start the body of repeat command
         match self.tokens.next() {
             Some(tok) => match tok {
                 Token::LBracket => (),
-                _ => return Err(ParseError::UnexpectedToken(tok.clone())),
+                _ => {
+                    return Err(ParseError::UnexpectedToken(
+                        tok.clone(),
+                        vec![Token::LBracket],
+                    ))
+                }
             },
             None => return Err(ParseError::EOF),
         }
@@ -149,7 +151,12 @@ impl<'a> Parser<'a> {
         let name = match self.tokens.next() {
             Some(tok) => match tok {
                 Token::Identifier { literal } => Ok(literal.to_string()),
-                _ => Err(ParseError::UnexpectedToken(tok.clone())),
+                _ => Err(ParseError::UnexpectedToken(
+                    tok.clone(),
+                    vec![Token::Identifier {
+                        literal: "".to_string(),
+                    }],
+                )),
             },
             None => Err(ParseError::EOF),
         }?;
@@ -168,6 +175,7 @@ impl<'a> Parser<'a> {
 
         let mut body = AST::new();
 
+        // parse the body of the procedure until a repeat is found
         loop {
             body.statements.push(match self.tokens.next() {
                 Some(tok) => match tok {
@@ -185,7 +193,14 @@ impl<'a> Parser<'a> {
         let name = match self.tokens.next() {
             Some(tok) => match tok {
                 Token::Word { literal } => literal.to_string(),
-                _ => return Err(ParseError::UnexpectedToken(tok.clone())),
+                _ => {
+                    return Err(ParseError::UnexpectedToken(
+                        tok.clone(),
+                        vec![Token::Word {
+                            literal: "".to_string(),
+                        }],
+                    ))
+                }
             },
             None => return Err(ParseError::EOF),
         };
@@ -294,8 +309,7 @@ impl<'a> Parser<'a> {
             if let Some(popped) = operator_stack.pop() {
                 match popped {
                     Token::Operator(op) => output.push(Expression::Operator { op }),
-                    Token::LParen | Token::RParen =>
-                        return Err(ParseError::UnbalancedParens),
+                    Token::LParen | Token::RParen => return Err(ParseError::UnbalancedParens),
                     _ => (),
                 }
             }
@@ -325,9 +339,17 @@ impl<'a> Parser<'a> {
                 Token::Variable { name } => Ok(Expression::Variable {
                     name: name.to_string(),
                 }),
-                _ => Err(ParseError::TypeMismatch {
-                    expected: "Number".to_string(),
-                }),
+                _ => Err(ParseError::UnexpectedToken(
+                    tok.clone(),
+                    vec![
+                        Token::Number {
+                            literal: "".to_string(),
+                        },
+                        Token::Variable {
+                            name: "".to_string(),
+                        },
+                    ],
+                )),
             },
             None => Err(ParseError::EOF),
         }?;

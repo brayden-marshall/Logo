@@ -57,6 +57,25 @@ pub enum Token {
     RParen,
 }
 
+impl Token {
+    /// Converts a token into a string representation.
+    /// Does not include additional fields such as `literal` or `name`, only
+    /// the name of the type of Token.
+    ///
+    /// Useful for some error reporting output that only cares about the expected
+    /// token, but not any extra info.
+    pub fn to_string(&self) -> String {
+        use Token::*;
+        match self {
+            Number { literal: _ } => "Number".to_string(),
+            Word { literal: _ } => "Word".to_string(),
+            Variable { name: _ } => "Variable".to_string(),
+            Identifier { literal: _ } => "Identifier".to_string(),
+            _ => format!("{}", self),
+        }
+    }
+}
+
 impl fmt::Display for Token {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         use Token::*;
