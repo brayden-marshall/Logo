@@ -1,50 +1,53 @@
 use std::collections::HashMap;
-use turtle::Turtle;
 
-use crate::commands::{get_turtle_commands, TurtleCommand};
+use crate::command::Command;
 use crate::error::RuntimeError;
 use crate::lexer::Operator;
 use crate::parser::{Expression, Statement, AST};
 
-pub struct Procedure {
+#[derive(Debug, PartialEq)]
+pub struct Instruction {
+    pub command: Command,
+    pub args: Vec<isize>,
+}
+
+struct Procedure {
     ast: AST,
     params: Vec<String>,
 }
 
 pub struct Evaluator {
-    turtle: Option<Turtle>,
     globals: HashMap<String, Expression>,
     // stack of local scopes
     locals: Vec<HashMap<String, Expression>>,
     procedures: HashMap<String, Procedure>,
-    commands: HashMap<String, TurtleCommand>,
 }
 
 impl Evaluator {
     /// Creates a new Evaluator object, including the memory (as HashMaps) to store
     /// variables and procedures.
-    pub fn new(create_turtle: bool) -> Self {
+    pub fn new() -> Self {
         Evaluator {
-            turtle: if create_turtle {
-                Some(Turtle::new())
-            } else {
-                None
-            },
             globals: HashMap::new(),
             locals: Vec::new(),
             procedures: HashMap::new(),
-            commands: get_turtle_commands(),
         }
     }
 
-    pub fn run_ast(&mut self, ast: &AST) -> Result<(), RuntimeError> {
+    pub fn evaluate_ast(&mut self, ast: &AST) -> Result<Vec<Instruction>, RuntimeError> {
+        let mut instructions = Vec::new();
         for stmt in ast.statements.iter() {
-            self.run_statement(stmt)?;
+            self.evaluate_statement(stmt, &mut instructions)?;
         }
-        Ok(())
+
+        Ok(instructions)
     }
 
-    fn run_statement(&mut self, stmt: &Statement) -> Result<(), RuntimeError> {
+    fn evaluate_statement(
+        &mut self,
+        stmt: &Statement,
+        instructions: &mut Vec<Instruction>,
+    ) -> Result<(), RuntimeError> {
         // currently does not handle varying argument types,
         // only accept LOGO number values as command arguments
         match stmt {
@@ -65,10 +68,10 @@ impl Evaluator {
             }
 
             Statement::ProcedureCall { name, args } => {
-                if let Some(command) = self.commands.get(name) {
-                    if command.arity != args.len() {
+                if let Some(command) = Command::from_string(name) {
+                    if command.arity() != args.len() {
                         return Err(RuntimeError::ArgCountMismatch {
-                            expected: command.arity,
+                            expected: command.arity(),
                         });
                     }
 
@@ -77,13 +80,10 @@ impl Evaluator {
                         _args.push(self.evaluate_expression(&args[i])?);
                     }
 
-                    if let None = self.turtle {
-                        self.turtle = Some(Turtle::new());
-                    }
-
-                    if let Some(turtle) = &mut self.turtle {
-                        (command.func)(turtle, &_args);
-                    }
+                    instructions.push(Instruction {
+                        command,
+                        args: _args,
+                    });
                 } else {
                     let procedure = match self.procedures.get(name) {
                         Some(p) => p,
@@ -110,7 +110,8 @@ impl Evaluator {
                     // begin procedure scope
                     self.locals.push(local_vars);
 
-                    self.run_ast(&ast)?;
+                    // evaluate the ast and append the result to 'instructions'
+                    instructions.extend(self.evaluate_ast(&ast)?);
 
                     // end procedure scope
                     self.locals.pop();
@@ -135,7 +136,7 @@ impl Evaluator {
             Statement::Repeat { count, body } => {
                 let _count = self.evaluate_expression(count)?;
                 for _ in 0.._count {
-                    self.run_ast(body)?;
+                    instructions.extend(self.evaluate_ast(body)?);
                 }
             }
         }
@@ -162,7 +163,7 @@ impl Evaluator {
                         name: name.to_string(),
                     }),
                 }
-            },
+            }
             Expression::ArithmeticExpression { postfix } => Ok(self.evaluate_postfix(postfix)?),
 
             // this case should not be reached under normal circumstances
@@ -198,7 +199,8 @@ impl Evaluator {
                 _ => {
                     return Err(RuntimeError::Other(
                         "reverse polish notation should only contain numbers,
-                        variables and operators".to_string(),
+                        variables and operators"
+                            .to_string(),
                     ))
                 }
             }
@@ -212,8 +214,99 @@ mod tests {
     use super::*;
 
     #[test]
+    fn evaluate_movement_commands_test() {
+        let mut evaluator = Evaluator::new();
+
+        let ast = AST {
+            statements: vec![
+                Statement::ProcedureCall {
+                    name: "fd".to_string(),
+                    args: vec![Expression::Number { val: 10 }],
+                },
+                Statement::ProcedureCall {
+                    name: "backward".to_string(),
+                    args: vec![Expression::Number { val: 4321 }],
+                },
+                Statement::ProcedureCall {
+                    name: "right".to_string(),
+                    args: vec![Expression::Number { val: 100 }],
+                },
+                Statement::ProcedureCall {
+                    name: "left".to_string(),
+                    args: vec![Expression::Number { val: -100 }],
+                },
+            ],
+        };
+
+        let instructions = match evaluator.evaluate_ast(&ast) {
+            Ok(i) => i,
+            Err(e) => panic!(e),
+        };
+
+        assert_eq!(
+            instructions,
+            vec![
+                Instruction {
+                    command: Command::Forward,
+                    args: vec![10],
+                },
+                Instruction {
+                    command: Command::Backward,
+                    args: vec![4321],
+                },
+                Instruction {
+                    command: Command::Right,
+                    args: vec![100],
+                },
+                Instruction {
+                    command: Command::Left,
+                    args: vec![-100],
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn evaluate_repeat_test() {
+        let mut evaluator = Evaluator::new();
+
+        let ast = AST {
+            statements: vec![
+                Statement::Repeat {
+                    count: Expression::Number {
+                        val: 3,
+                    },
+                    body: AST {
+                        statements: vec![
+                            Statement::ProcedureCall {
+                                name: "forward".to_string(),
+                                args: vec![
+                                    Expression::Number {
+                                        val: 10
+                                    }
+                                ],
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+
+        let instructions = evaluator.evaluate_ast(&ast).unwrap();
+        assert_eq!(
+            instructions,
+            (0..3).map(|_| {
+                Instruction {
+                    command: Command::Forward,
+                    args: vec![10],
+                }
+            }).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
     fn evaluate_postfix_test() {
-        let mut evaluator = Evaluator::new(false);
+        let mut evaluator = Evaluator::new();
         //let mut vars: HashMap<String, Expression> = HashMap::new();
         evaluator
             .globals

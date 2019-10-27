@@ -2,33 +2,37 @@ use crate::lexer::Token;
 use std::fmt;
 
 #[derive(Debug)]
-pub enum RuntimeError {
-    RedeclaredProcedure { name: String },
-    ProcedureNotFound { name: String },
-    VariableNotFound { name: String },
-    ArgCountMismatch { expected: usize },
-    Other(String),
+pub enum LogoError {
+    Lex(LexError),
+    Parse(ParseError),
+    Runtime(RuntimeError),
 }
 
-impl fmt::Display for RuntimeError {
+impl fmt::Display for LogoError {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        use LogoError::*;
+        formatter.write_str(&match self {
+            Lex(e) => format!("{}", e),
+            Parse(e) => format!("{}", e),
+            Runtime(e) => format!("{}", e),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum LexError {
+    UnrecognizedToken,
+}
+
+impl fmt::Display for LexError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             formatter,
             "{}",
             match self {
-                RuntimeError::RedeclaredProcedure { name } => {
-                    format!("Procedure '{}' has already been declared", name)
+                LexError::UnrecognizedToken => {
+                    String::from("Found unexpected token during lexing phase")
                 }
-                RuntimeError::ProcedureNotFound { name } => {
-                    format!("Procedure '{}' does not exist", name)
-                }
-                RuntimeError::VariableNotFound { name } => {
-                    format!("Variable :{} has not been declared", name)
-                }
-                RuntimeError::ArgCountMismatch { expected } => {
-                    format!("Wrong number of arguments, expected {}", expected)
-                }
-                RuntimeError::Other(message) => message.to_string(),
             }
         )
     }
@@ -73,19 +77,33 @@ impl fmt::Display for ParseError {
 }
 
 #[derive(Debug)]
-pub enum LexError {
-    UnrecognizedToken,
+pub enum RuntimeError {
+    RedeclaredProcedure { name: String },
+    ProcedureNotFound { name: String },
+    VariableNotFound { name: String },
+    ArgCountMismatch { expected: usize },
+    Other(String),
 }
 
-impl fmt::Display for LexError {
+impl fmt::Display for RuntimeError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             formatter,
             "{}",
             match self {
-                LexError::UnrecognizedToken => {
-                    String::from("Found unexpected token during lexing phase")
+                RuntimeError::RedeclaredProcedure { name } => {
+                    format!("Procedure '{}' has already been declared", name)
                 }
+                RuntimeError::ProcedureNotFound { name } => {
+                    format!("Procedure '{}' does not exist", name)
+                }
+                RuntimeError::VariableNotFound { name } => {
+                    format!("Variable :{} has not been declared", name)
+                }
+                RuntimeError::ArgCountMismatch { expected } => {
+                    format!("Wrong number of arguments, expected {}", expected)
+                }
+                RuntimeError::Other(message) => message.to_string(),
             }
         )
     }
