@@ -1,3 +1,6 @@
+setsc 240 160 120
+setpensize 3
+
 to square
 repeat 4 [
     forward 40
