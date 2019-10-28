@@ -75,6 +75,7 @@ fn main() {
     // create the Interpreter
     let mut interpreter = Interpreter::new();
 
+    // create the turtle (also creates the window)
     let mut turtle = Turtle::new();
 
     // if a script argument was passed, run the script
@@ -88,7 +89,7 @@ fn main() {
                     std::process::exit(1);
                 }
                 
-            }
+            },
         );
 
         match instructions {
@@ -104,7 +105,6 @@ fn main() {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                //print_program_output(run_program(&line, &mut evaluator, debug));
                 match interpreter.run_program(&line) {
                     Ok(i) => run_instructions(&i, &mut turtle),
                     Err(e) => eprintln!("{}", e),
