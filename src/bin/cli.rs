@@ -57,13 +57,6 @@ fn main() {
                 .index(1),
         )
         .arg(
-            Arg::with_name("debug")
-                .short("d")
-                .long("debug")
-                .help("Print debug information")
-                .takes_value(false),
-        )
-        .arg(
             Arg::with_name("no-turtle")
                 .short("n")
                 .long("no-turtle")
@@ -88,7 +81,6 @@ fn main() {
                     eprintln!("Error reading file: {}", e);
                     std::process::exit(1);
                 }
-                
             },
         );
 
