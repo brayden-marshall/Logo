@@ -26,13 +26,13 @@ impl Operator {
         }
     }
 
-    pub fn literal(&self) -> String {
+    pub fn literal(&self) -> &str {
         use Operator::*;
         match self {
-            Addition => "+".to_string(),
-            Subtraction => "-".to_string(),
-            Multiplication => "*".to_string(),
-            Division => "/".to_string(),
+            Addition => "+",
+            Subtraction => "-",
+            Multiplication => "*",
+            Division => "/",
         }
     }
 }
@@ -64,40 +64,29 @@ impl Token {
     ///
     /// Useful for some error reporting output that only cares about the expected
     /// token, but not any extra info.
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self) -> &str {
         use Token::*;
         match self {
-            Number { literal: _ } => "Number".to_string(),
-            Word { literal: _ } => "Word".to_string(),
-            Variable { name: _ } => "Variable".to_string(),
-            Identifier { literal: _ } => "Identifier".to_string(),
-            _ => format!("{}", self),
+            Operator(op) => op.literal(),
+            Number { literal: _ } => "Number",
+            Word { literal: _ } => "Word",
+            Variable { name: _ } => "Variable",
+            Identifier { literal: _ } => "Identifier",
+            Repeat => "repeat",
+            Make => "make",
+            To => "to",
+            End => "end",
+            LBracket => "[",
+            RBracket => "]",
+            LParen => "(",
+            RParen => ")",
         }
     }
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        use Token::*;
-        write!(
-            formatter,
-            "{}",
-            match self {
-                Operator(op) => op.literal(),
-                Number { literal } => literal.to_string(),
-                Word { literal } => literal.to_string(),
-                Variable { name } => format!(":{}", name),
-                Identifier { literal } => literal.to_string(),
-                Repeat => "repeat".to_string(),
-                Make => "make".to_string(),
-                To => "to".to_string(),
-                End => "end".to_string(),
-                LBracket => "[".to_string(),
-                RBracket => "]".to_string(),
-                LParen => "(".to_string(),
-                RParen => ")".to_string(),
-            }
-        )
+        write!(formatter, "{}", self.to_string())
     }
 }
 
@@ -108,10 +97,10 @@ fn regex(input: &str) -> Regex {
 fn get_keywords() -> HashMap<String, Token> {
     let mut keywords = HashMap::<String, Token>::new();
 
-    keywords.insert(String::from("repeat"), Token::Repeat);
-    keywords.insert(String::from("make"), Token::Make);
-    keywords.insert(String::from("to"), Token::To);
-    keywords.insert(String::from("end"), Token::End);
+    keywords.insert("repeat".to_string(), Token::Repeat);
+    keywords.insert("make".to_string(), Token::Make);
+    keywords.insert("to".to_string(), Token::To);
+    keywords.insert("end".to_string(), Token::End);
 
     keywords
 }
@@ -140,12 +129,6 @@ const IDENT_REGEX: &str = r"^[a-zA-Z][0-9a-zA-Z_]*";
 // it's regular expression used for parsing
 fn get_token_definitions() -> Vec<TokenDef> {
     vec![
-        // keywords
-        //TokenDef::new(Token::Repeat, r"^repeat"),
-        //TokenDef::new(Token::Make, r"^make"),
-        //TokenDef::new(Token::To, r"^to"),
-        //TokenDef::new(Token::End, r"^end"),
-        // main tokens
         TokenDef::new(
             Token::Number {
                 literal: Default::default(),
@@ -207,7 +190,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn collect_tokens(&mut self) -> Result<Vec<Token>, LexError>{
+    pub fn collect_tokens(&mut self) -> Result<Vec<Token>, LexError> {
         let mut tokens: Vec<Token> = Vec::new();
         while let Some(lex_result) = self.next() {
             match lex_result {
@@ -225,6 +208,13 @@ impl<'a> Lexer<'a> {
         if let Some(m) = self.whitespace_regex.find(&self.source[self.index..]) {
             self.index += m.end();
         }
+    }
+
+    // consumes n characters from the underlying slice, returns the consumed content
+    fn consume(&mut self, n: usize) -> String {
+        let content = (&self.source[self.index..self.index + n]).to_string();
+        self.index += n;
+        content
     }
 }
 
@@ -244,34 +234,38 @@ impl<'a> Iterator for Lexer<'a> {
             if let Some(m) = def.regex.find(&self.source[self.index..]) {
                 let token = match def.token {
                     Token::Number { literal: _ } => Token::Number {
-                        literal: String::from(&self.source[self.index..self.index + m.end()]),
+                        literal: self.consume(m.end()),
                     },
-                    Token::Word { literal: _ } => Token::Word {
-                        literal: String::from(
-                            // index+1 to ignore the leading " character
-                            &self.source[self.index + 1..self.index + m.end()],
-                        ),
-                    },
-                    Token::Variable { name: _ } => Token::Variable {
-                        name: String::from(
-                            // index+1 to ignore the leading : character
-                            &self.source[self.index + 1..self.index + m.end()],
-                        ),
-                    },
+                    Token::Word { literal: _ } => {
+                        // advance 1 to ignore the leading " character
+                        self.index += 1;
+                        Token::Word {
+                            // m.end() - 1 because we already skipped one character of the match
+                            literal: self.consume(m.end() - 1),
+                        }
+                    }
+                    Token::Variable { name: _ } => {
+                        // advance 1 to ignore the leading " character
+                        self.index += 1;
+                        Token::Variable {
+                            // m.end() - 1 because we already skipped one character of the match
+                            name: self.consume(m.end() - 1),
+                        }
+                    }
                     Token::Identifier { literal: _ } => {
-                        let literal = String::from(&self.source[self.index..self.index + m.end()]);
+                        let literal = self.consume(m.end());
                         if let Some(tok) = self.keywords.get(&literal) {
                             tok.clone()
                         } else {
                             Token::Identifier { literal: literal }
                         }
                     }
-                    _ => def.token.clone(),
+                    _ => {
+                        self.index += m.end();
+                        def.token.clone()
+                    },
                 };
 
-                // increasing internal index counter by the number of characters:
-                // the token consumed
-                self.index += m.end();
                 return Some(Ok(token));
             }
         }
@@ -289,7 +283,6 @@ mod tests {
     fn number_regex_test() {
         let number_regex = Regex::new(NUMBER_REGEX).unwrap();
         let test_strings = vec!["1", "123456789", "-567", "-2943090"];
-        //let test_positions = vec![1, 9, 4, 8];
 
         for input in test_strings.iter() {
             if let Some(m) = number_regex.find(input) {

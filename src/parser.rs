@@ -242,7 +242,7 @@ impl<'a> Parser<'a> {
             if let Some(tok) = tokens.next() {
                 match tok {
                     Token::Number { literal } => {
-                        output.push(Parser::parse_number(literal.to_string())?)
+                        output.push(Parser::parse_number(literal)?)
                     }
                     Token::Variable { name } => output.push(Expression::Variable {
                         name: name.to_string(),
@@ -282,7 +282,7 @@ impl<'a> Parser<'a> {
                                 // operator is a special case
                                 Some(tok) => output.push(match tok {
                                     Token::Number { literal } => {
-                                        Parser::parse_number(literal.to_string())?
+                                        Parser::parse_number(&literal)?
                                     }
 
                                     Token::Variable { name } => Expression::Variable {
@@ -319,7 +319,7 @@ impl<'a> Parser<'a> {
         Ok(Expression::ArithmeticExpression { postfix: output })
     }
 
-    fn parse_number(literal: String) -> Result<Expression, ParseError> {
+    fn parse_number(literal: &str) -> Result<Expression, ParseError> {
         match literal.parse() {
             Ok(n) => Ok(Expression::Number { val: n }),
             Err(_) => Err(ParseError::ParseInteger(literal.to_string())),
@@ -336,7 +336,7 @@ impl<'a> Parser<'a> {
 
         let mut expr = match self.tokens.next() {
             Some(tok) => match tok {
-                Token::Number { literal } => Parser::parse_number(literal.to_string()),
+                Token::Number { literal } => Parser::parse_number(literal),
                 Token::Variable { name } => Ok(Expression::Variable {
                     name: name.to_string(),
                 }),

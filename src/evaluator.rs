@@ -307,7 +307,6 @@ mod tests {
     #[test]
     fn evaluate_postfix_test() {
         let mut evaluator = Evaluator::new();
-        //let mut vars: HashMap<String, Expression> = HashMap::new();
         evaluator
             .globals
             .insert("count".to_string(), Expression::Number { val: 10 });
