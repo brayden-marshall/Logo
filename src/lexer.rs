@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::default::Default;
+use std::mem;
 use std::fmt;
 #[allow(unused_imports)]
 use std::iter::FromIterator;
@@ -37,7 +38,7 @@ impl Operator {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Token {
     Operator(Operator),
 
@@ -55,6 +56,13 @@ pub enum Token {
     RBracket,
     LParen,
     RParen,
+}
+
+// custom implementation to only consider token variant, not value
+impl PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        mem::discriminant(self) == mem::discriminant(other)
+    }
 }
 
 impl Token {
@@ -80,6 +88,16 @@ impl Token {
             RBracket => "]",
             LParen => "(",
             RParen => ")",
+        }
+    }
+
+    pub fn value(&self) -> Option<&str> {
+        match self {
+            Token::Number { literal } => Some(literal),
+            Token::Word { literal } => Some(literal),
+            Token::Variable { name } => Some(name),
+            Token::Identifier { literal } => Some(literal),
+            _ => None
         }
     }
 }

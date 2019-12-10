@@ -65,6 +65,20 @@ impl<'a> Parser<'a> {
         Ok(ast)
     }
 
+
+    fn expect(&mut self, expected: Token) -> Result<&Token, ParseError> {
+        match self.tokens.next() {
+            Some(tok) => if *tok == expected {
+                    Ok(tok)
+            } else {
+                Err(ParseError::UnexpectedToken (
+                    (*tok).clone(), vec![expected.clone()]
+                ))
+            },
+            None => Err(ParseError::EOF),
+        }
+    }
+
     fn parse_statement(&mut self, token: &Token) -> Result<Statement, ParseError> {
         use Token::*;
         match token {
@@ -95,11 +109,8 @@ impl<'a> Parser<'a> {
 
         while let Some(tok) = self.tokens.peek() {
             match tok {
-                Token::Variable { name: _ } | Token::Number { literal: _ } => {
+                Token::Variable { name: _ } | Token::Number { literal: _ } | Token::LParen => {
                     args.push(self.parse_expression()?)
-                }
-                Token::LParen => {
-                    args.push(Parser::parse_arithmetic_expression(&mut self.tokens, None)?)
                 }
                 _ => break,
             }
@@ -112,24 +123,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_repeat(&mut self) -> Result<Statement, ParseError> {
-        let mut body: Vec<Statement> = Vec::new();
 
         let count: Expression = self.parse_expression()?;
 
-        // check for a left bracket to start the body of repeat command
-        match self.tokens.next() {
-            Some(tok) => match tok {
-                Token::LBracket => (),
-                _ => {
-                    return Err(ParseError::UnexpectedToken(
-                        tok.clone(),
-                        vec![Token::LBracket],
-                    ))
-                }
-            },
-            None => return Err(ParseError::EOF),
-        }
+        self.expect(Token::LBracket)?;
 
+        let mut body: Vec<Statement> = Vec::new();
         // parse expressions of repeat body until we find a closing bracket
         loop {
             body.push(match self.tokens.next() {
@@ -148,18 +147,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_procedure_declaration(&mut self) -> Result<Statement, ParseError> {
-        let name = match self.tokens.next() {
-            Some(tok) => match tok {
-                Token::Identifier { literal } => Ok(literal.to_string()),
-                _ => Err(ParseError::UnexpectedToken(
-                    tok.clone(),
-                    vec![Token::Identifier {
-                        literal: "".to_string(),
-                    }],
-                )),
-            },
-            None => Err(ParseError::EOF),
-        }?;
+        let name = self.expect(
+            Token::Identifier { literal: "".to_string() }
+        )?.value().unwrap().to_string();
 
         // parse parameters if given
         let mut params = Vec::<String>::new();
@@ -190,20 +180,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Statement, ParseError> {
-        let name = match self.tokens.next() {
-            Some(tok) => match tok {
-                Token::Word { literal } => literal.to_string(),
-                _ => {
-                    return Err(ParseError::UnexpectedToken(
-                        tok.clone(),
-                        vec![Token::Word {
-                            literal: "".to_string(),
-                        }],
-                    ))
-                }
-            },
-            None => return Err(ParseError::EOF),
-        };
+        let name = self.expect(
+            Token::Word { literal: "".to_string() }
+        )?.value().unwrap().to_string();
 
         let val = Box::new(self.parse_expression()?);
 
@@ -327,15 +306,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
-        // if the next token is a left paren, parse an arithmetic expression
-        if let Some(tok) = self.tokens.peek() {
-            if let Token::LParen = tok {
-                return Parser::parse_arithmetic_expression(&mut self.tokens, None);
-            }
-        }
-
         let mut expr = match self.tokens.next() {
             Some(tok) => match tok {
+                Token::LParen => Parser::parse_arithmetic_expression(&mut self.tokens, None),
                 Token::Number { literal } => Parser::parse_number(literal),
                 Token::Variable { name } => Ok(Expression::Variable {
                     name: name.to_string(),
