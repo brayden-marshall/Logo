@@ -65,16 +65,21 @@ impl<'a> Parser<'a> {
         Ok(ast)
     }
 
-
+    /// expect that the next token is 'Token' and return an Err if this is not the case
+    /// it is okay to conusme the next token in the underlying Iterator here because
+    /// the parser will be in an error state if the next token does not match `expected`
     fn expect(&mut self, expected: Token) -> Result<&Token, ParseError> {
         match self.tokens.next() {
-            Some(tok) => if *tok == expected {
+            Some(tok) => {
+                if *tok == expected {
                     Ok(tok)
-            } else {
-                Err(ParseError::UnexpectedToken (
-                    (*tok).clone(), vec![expected.clone()]
-                ))
-            },
+                } else {
+                    Err(ParseError::UnexpectedToken(
+                        (*tok).clone(),
+                        vec![expected.clone()],
+                    ))
+                }
+            }
             None => Err(ParseError::EOF),
         }
     }
@@ -123,7 +128,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_repeat(&mut self) -> Result<Statement, ParseError> {
-
         let count: Expression = self.parse_expression()?;
 
         self.expect(Token::LBracket)?;
@@ -131,13 +135,15 @@ impl<'a> Parser<'a> {
         let mut body: Vec<Statement> = Vec::new();
         // parse expressions of repeat body until we find a closing bracket
         loop {
-            body.push(match self.tokens.next() {
+            let tok = match self.tokens.next() {
                 Some(tok) => match tok {
                     Token::RBracket => break,
                     _ => self.parse_statement(tok),
                 },
                 None => Err(ParseError::EOF),
-            }?);
+            }?;
+
+            body.push(tok);
         }
 
         Ok(Statement::Repeat {
@@ -147,9 +153,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_procedure_declaration(&mut self) -> Result<Statement, ParseError> {
-        let name = self.expect(
-            Token::Identifier { literal: "".to_string() }
-        )?.value().unwrap().to_string();
+        let name = self
+            .expect(Token::Identifier {
+                literal: "".to_string(),
+            })?
+            .value()
+            .unwrap()
+            .to_string();
 
         // parse parameters if given
         let mut params = Vec::<String>::new();
@@ -167,22 +177,28 @@ impl<'a> Parser<'a> {
 
         // parse the body of the procedure until a repeat is found
         loop {
-            body.statements.push(match self.tokens.next() {
+            let tok = match self.tokens.next() {
                 Some(tok) => match tok {
                     Token::End => break,
                     _ => self.parse_statement(tok),
                 },
                 None => Err(ParseError::EOF),
-            }?);
+            }?;
+
+            body.statements.push(tok);
         }
 
         Ok(Statement::ProcedureDeclaration { name, body, params })
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Statement, ParseError> {
-        let name = self.expect(
-            Token::Word { literal: "".to_string() }
-        )?.value().unwrap().to_string();
+        let name = self
+            .expect(Token::Word {
+                literal: "".to_string(),
+            })?
+            .value()
+            .unwrap()
+            .to_string();
 
         let val = Box::new(self.parse_expression()?);
 
@@ -220,9 +236,7 @@ impl<'a> Parser<'a> {
 
             if let Some(tok) = tokens.next() {
                 match tok {
-                    Token::Number { literal } => {
-                        output.push(Parser::parse_number(literal)?)
-                    }
+                    Token::Number { literal } => output.push(Parser::parse_number(literal)?),
                     Token::Variable { name } => output.push(Expression::Variable {
                         name: name.to_string(),
                     }),
@@ -260,9 +274,7 @@ impl<'a> Parser<'a> {
                                 // can't use parse_expression to cover all options here because the
                                 // operator is a special case
                                 Some(tok) => output.push(match tok {
-                                    Token::Number { literal } => {
-                                        Parser::parse_number(&literal)?
-                                    }
+                                    Token::Number { literal } => Parser::parse_number(&literal)?,
 
                                     Token::Variable { name } => Expression::Variable {
                                         name: name.to_string(),

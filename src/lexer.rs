@@ -213,9 +213,7 @@ impl<'a> Lexer<'a> {
         while let Some(lex_result) = self.next() {
             match lex_result {
                 Ok(tok) => tokens.push(tok),
-                Err(e) => {
-                    return Err(e);
-                }
+                Err(e) => return Err(e),
             }
         }
         Ok(tokens)
@@ -287,7 +285,6 @@ impl<'a> Iterator for Lexer<'a> {
                 return Some(Ok(token));
             }
         }
-
         // no match was found for any token definition
         Some(Err(LexError::UnrecognizedToken))
     }
