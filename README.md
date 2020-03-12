@@ -54,7 +54,7 @@ make "angle_1 45
 fd 10 rt :angle_1
 ```
 
-- Arithmetic operations on numbers: `fd 100 + 70 bk 7 * :var - 12`
+- Arithmetic operations on numbers: `fd 100 + 70 bk 7 * (:var - 12)`
 
 - Repeat (can be nested): `repeat 7 [ forward 100 rt 40 ]`
 
