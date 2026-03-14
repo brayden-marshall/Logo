@@ -5,7 +5,8 @@ authors = ["BraydenMarshall <bmarsh579@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-turtle = "1.0.0-rc.2"
+turtle = { git = "https://github.com/brayden-marshall/turtle", rev = "1ea7321" }
 rustyline = "5.0.1"
 regex = "1"
 clap = "~2.33"
+rand = "0.10.0"

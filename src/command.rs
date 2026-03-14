@@ -14,6 +14,7 @@ pub enum Command {
     PenDown,
     SetPenSize,
     SetPenColor,
+    SetPenColorRandom,
 
     // other
     HideTurtle,
@@ -40,6 +41,7 @@ impl Command {
             "pendown" | "pd" => PenDown,
             "setpensize" => SetPenSize,
             "setpencolor" | "setpc" => SetPenColor,
+            "setpencolorrandom" | "setpcrand" => SetPenColorRandom,
             "hideturtle" | "ht" => HideTurtle,
             "showturtle" | "st" => ShowTurtle,
             "clearscreen" | "cs" => ClearScreen,
@@ -65,6 +67,7 @@ impl Command {
             PenUp | PenDown => 0,
             SetPenSize => 1,
             SetPenColor => 3,
+            SetPenColorRandom => 0,
 
             // other
             HideTurtle | ShowTurtle => 0,

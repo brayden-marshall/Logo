@@ -3,11 +3,11 @@ use std::fs;
 use clap::{App, Arg};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use turtle::Turtle;
+use turtle::{Color, Drawing, Turtle, rand};
 
 use logo::{Interpreter, Instruction, Command};
 
-fn run_instructions(instructions: &Vec<Instruction>, turtle: &mut Turtle) {
+fn run_instructions(instructions: &Vec<Instruction>, turtle: &mut Turtle, drawing: &mut Drawing) {
     for instruction in instructions.iter() {
         let args: Vec<_> = instruction.args.iter().map(|val| {
             *val as f64
@@ -28,6 +28,10 @@ fn run_instructions(instructions: &Vec<Instruction>, turtle: &mut Turtle) {
             PenDown => turtle.pen_down(),
             SetPenSize => turtle.set_pen_size(args[0]),
             SetPenColor => turtle.set_pen_color([args[0], args[1], args[2]]),
+            SetPenColorRandom => {
+                let color: Color = rand::random();
+                turtle.set_pen_color(color.opaque());
+            },
 
             // other
             HideTurtle => turtle.hide(),
@@ -35,9 +39,7 @@ fn run_instructions(instructions: &Vec<Instruction>, turtle: &mut Turtle) {
             ClearScreen => { turtle.clear(); turtle.home() },
             Clean => turtle.clear(),
             SetScreenColor => 
-                turtle
-                    .drawing_mut()
-                    .set_background_color([args[0], args[1], args[2]]),
+                drawing.set_background_color([args[0], args[1], args[2]]),
             Show => println!("{}", args[0]),
             Exit => std::process::exit(0),
         }
@@ -69,7 +71,8 @@ fn main() {
     let mut interpreter = Interpreter::new();
 
     // create the turtle (also creates the window)
-    let mut turtle = Turtle::new();
+    let mut drawing = Drawing::new();
+    let mut turtle = drawing.add_turtle();
 
     // if a script argument was passed, run the script
     if let Some(file) = matches.value_of("SCRIPT") {
@@ -85,7 +88,7 @@ fn main() {
         );
 
         match instructions {
-            Ok(i) => run_instructions(&i, &mut turtle),
+            Ok(i) => run_instructions(&i, &mut turtle, &mut drawing),
             Err(e) => eprintln!("{}", e)
         };
     }
@@ -98,7 +101,7 @@ fn main() {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
                 match interpreter.run_program(&line) {
-                    Ok(i) => run_instructions(&i, &mut turtle),
+                    Ok(i) => run_instructions(&i, &mut turtle, &mut drawing),
                     Err(e) => eprintln!("{}", e),
                 }
             }

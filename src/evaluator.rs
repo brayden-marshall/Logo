@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use rand::RngExt;
+
 use crate::command::Command;
 use crate::error::RuntimeError;
 use crate::lexer::Operator;
@@ -165,6 +167,7 @@ impl Evaluator {
                 }
             }
             Expression::ArithmeticExpression { postfix } => Ok(self.evaluate_postfix(postfix)?),
+            Expression::FunctionCall { function_name: function, arg } => Ok(self.evaluate_function_call(function, *arg)?),
 
             // this case should not be reached under normal circumstances
             Expression::Operator { op } => Err(RuntimeError::Other(format!(
@@ -206,6 +209,14 @@ impl Evaluator {
             }
         }
         Ok(stack[0])
+    }
+
+    fn evaluate_function_call(&self, function_name: &str, arg: isize) -> Result<isize, RuntimeError> {
+        let mut rng = rand::rng();
+        match function_name {
+            "random" => Ok(rng.random_range(0..arg as i64) as isize),
+            _ => Err(RuntimeError::Other("Invalid function name".to_string()))
+        }
     }
 }
 

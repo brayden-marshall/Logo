@@ -1,0 +1,16 @@
+to tree :iterations
+repeat :iterations [
+    setpencolor random 255 random 255 random 255
+    fd 40
+    rt random 30
+    fd 40
+    bk 40
+    lt 30
+    lt random 30
+    fd 40
+    bk 40
+    rt 30
+]
+end
+
+tree 10

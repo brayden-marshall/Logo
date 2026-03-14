@@ -1,4 +1,5 @@
 to hexagon :side_length
+setpencolorrandom
 repeat 6 [
     fd :side_length
     rt 60

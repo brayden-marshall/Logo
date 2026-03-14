@@ -11,6 +11,7 @@ This is my first attempt at writing an intepreter, so it is not the cleanest or 
 Before you can run the interpreter, you need to install Rust and Cargo. You can find instructions on how to do that [here](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
 To install:
+
 - Clone this repository onto your local workstation `git clone github.com/brayden-marshall/logo`
 - You can then compile the source code with the command `cargo build` (it will take a minute or so to install dependencies)
 - At this point you should be able to run the interpreter with the command `cargo run`
@@ -39,6 +40,10 @@ All supported commands and language structures are listed below, with code sampl
     - SetPenColor: `setpencolor 255 0 0 setpc 123 123 123`
     - SetScreenColor: `setscreencolor 255 0 0 setsc 123 123 123`
 
+- Functions (take 1 number argument and return a number):
+    - Random: `random 10`, `fd random 10`, `to procedure :num fd random :num end procedure random 10`
+        - Returns a random number between 0 (inclusive) and the given number (exclusive)
+
 - Misc. turtle commands
     - SetPenSize: `setpensize 20`
     - SetHeading: `setheading 0 seth 0`
@@ -49,6 +54,7 @@ All supported commands and language structures are listed below, with code sampl
 - Exit (added for convenience): `exit`
 
 - Variables:
+
 ```
 make "angle_1 45
 fd 10 rt :angle_1
@@ -59,6 +65,7 @@ fd 10 rt :angle_1
 - Repeat (can be nested): `repeat 7 [ forward 100 rt 40 ]`
 
 - Procedures (supports parameters):
+
 ```logo
 to draw_circle :x :y
 pu

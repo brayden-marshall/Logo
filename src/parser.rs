@@ -1,3 +1,4 @@
+use crate::Command;
 use crate::error::ParseError;
 use crate::lexer::{Operator, Token};
 use std::iter::Peekable;
@@ -32,6 +33,7 @@ pub enum Expression {
     Operator { op: Operator },
     Number { val: isize },
     Variable { name: String },
+    FunctionCall { function_name: String, arg: isize }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -113,8 +115,16 @@ impl<'a> Parser<'a> {
         let mut args: Vec<Expression> = Vec::new();
 
         while let Some(tok) = self.tokens.peek() {
+            if let Some(command) = Command::from_string(name) {
+                if args.len() >= command.arity() {
+                    break;
+                }
+            } else if args.len() >= 1 {
+                break;
+            }
+
             match tok {
-                Token::Variable { name: _ } | Token::Number { literal: _ } | Token::LParen => {
+                Token::Variable { name: _ } | Token::Number { literal: _ } | Token::LParen | Token::Identifier { literal: _ } => {
                     args.push(self.parse_expression()?)
                 }
                 _ => break,
@@ -236,7 +246,9 @@ impl<'a> Parser<'a> {
 
             if let Some(tok) = tokens.next() {
                 match tok {
-                    Token::Number { literal } => output.push(Parser::parse_number(literal)?),
+                    Token::Number { literal } => output.push(Expression::Number {
+                        val: Parser::parse_number(literal)?
+                    }),
                     Token::Variable { name } => output.push(Expression::Variable {
                         name: name.to_string(),
                     }),
@@ -274,7 +286,9 @@ impl<'a> Parser<'a> {
                                 // can't use parse_expression to cover all options here because the
                                 // operator is a special case
                                 Some(tok) => output.push(match tok {
-                                    Token::Number { literal } => Parser::parse_number(&literal)?,
+                                    Token::Number { literal } => Expression::Number {
+                                        val: Parser::parse_number(&literal)?
+                                    },
 
                                     Token::Variable { name } => Expression::Variable {
                                         name: name.to_string(),
@@ -310,9 +324,9 @@ impl<'a> Parser<'a> {
         Ok(Expression::ArithmeticExpression { postfix: output })
     }
 
-    fn parse_number(literal: &str) -> Result<Expression, ParseError> {
+    fn parse_number(literal: &str) -> Result<isize, ParseError> {
         match literal.parse() {
-            Ok(n) => Ok(Expression::Number { val: n }),
+            Ok(n) => Ok(n),
             Err(_) => Err(ParseError::ParseInteger(literal.to_string())),
         }
     }
@@ -321,10 +335,33 @@ impl<'a> Parser<'a> {
         let mut expr = match self.tokens.next() {
             Some(tok) => match tok {
                 Token::LParen => Parser::parse_arithmetic_expression(&mut self.tokens, None),
-                Token::Number { literal } => Parser::parse_number(literal),
+                Token::Number { literal } => Ok(Expression::Number {
+                    val: Parser::parse_number(literal)?
+                }),
                 Token::Variable { name } => Ok(Expression::Variable {
                     name: name.to_string(),
                 }),
+                Token::Identifier { literal } => {
+                    if let Some(tok) = self.tokens.peek() {
+                        if let Token::Number { literal: number_literal } = tok {
+                            let number = Parser::parse_number(number_literal)?;
+                            self.tokens.next();
+                            return Ok(Expression::FunctionCall {
+                                function_name: literal.to_string(),
+                                arg: number
+                            });
+                        }
+                    }
+
+                    Err(ParseError::UnexpectedToken(
+                        tok.clone(),
+                        vec![
+                            Token::Number {
+                                literal: "".to_string()
+                            }
+                        ]
+                    ))
+                },
                 _ => Err(ParseError::UnexpectedToken(
                     tok.clone(),
                     vec![
