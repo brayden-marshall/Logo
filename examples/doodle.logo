@@ -1,0 +1,55 @@
+setspeed 24
+setpencolor 255 255 255
+setscreencolor 0 0 0 
+
+to draw_section :iterations
+    make "count 0
+    repeat :iterations [
+        fd 150
+        bk 150
+        rt 90 + (10 * :count)
+        fd 25
+
+        make "count :count + 1
+        lt 90 + (10 * :count)
+    ]
+end
+
+to draw_rectangle
+    draw_section 10
+
+    pu
+    rt 100
+    fd 150
+    rt 180
+    pd
+
+    draw_section 10
+
+    rt 100
+    pu fd 150 pd
+    rt 150
+end
+
+make "section_number 0
+repeat 6 [
+    make "red 200 - :section_number * 20
+    make "blue 80 + :section_number * 20
+    setpencolor 0 :red :blue
+
+    draw_rectangle
+
+    make "section_number :section_number + 1
+]
+
+repeat 6 [
+    make "red 200 - :section_number * 20
+    make "blue 80 + :section_number * 20
+    setpencolor 0 :red :blue
+    
+    draw_rectangle
+    
+    make "section_number :section_number - 1
+]
+
+hideturtle

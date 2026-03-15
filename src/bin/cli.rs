@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs};
 
 use clap::{App, Arg};
 use rustyline::error::ReadlineError;
@@ -22,6 +22,7 @@ fn run_instructions(instructions: &Vec<Instruction>, turtle: &mut Turtle, drawin
             SetHeading => turtle.set_heading(args[0]),
             SetXY => turtle.go_to([args[0], args[1]]),
             Home => turtle.home(),
+            SetSpeed => turtle.set_speed(args[0]),
 
             // pen
             PenUp => turtle.pen_up(),
@@ -72,6 +73,7 @@ fn main() {
 
     // create the turtle (also creates the window)
     let mut drawing = Drawing::new();
+    drawing.set_size((600, 600));
     let mut turtle = drawing.add_turtle();
 
     // if a script argument was passed, run the script

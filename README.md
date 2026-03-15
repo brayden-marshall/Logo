@@ -27,6 +27,8 @@ All supported commands and language structures are listed below, with code sampl
     - Backward: `bk -10 | backward -10`
     - Left: `lt 90 | left 90`
     - Right: `rt -270 | right -270`
+    - SetSpeed `setspeed 10`
+        - Speed must be in the range [1, 25]
 
 - Visual commands (take no arguments)
     - PenUp: `pu | penup`

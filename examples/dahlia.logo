@@ -1,0 +1,9 @@
+setspeed 25
+pu
+bk 50
+lt 90
+fd 100
+rt 90
+pd
+
+repeat 8 [rt 45 setpencolor 0 random 255 random 150 repeat 6 [repeat 30 [fd 10 rt 6] rt 90]]

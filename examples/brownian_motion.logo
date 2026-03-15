@@ -1,0 +1,9 @@
+setspeed 25
+repeat 10000 [
+    setpencolor random 255 random 255 random 255
+    make "rand1 random 2
+    make "rand2 random 4
+
+    fd 10 * (-1 + :rand1)
+    rt 90 * :rand2
+]

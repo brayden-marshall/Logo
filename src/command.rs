@@ -8,6 +8,7 @@ pub enum Command {
     SetHeading,
     SetXY,
     Home,
+    SetSpeed,
 
     // pen
     PenUp,
@@ -37,6 +38,7 @@ impl Command {
             "setheading" | "seth" => SetHeading,
             "setxy" => SetXY,
             "home" => Home,
+            "setspeed" => SetSpeed,
             "penup" | "pu" => PenUp,
             "pendown" | "pd" => PenDown,
             "setpensize" => SetPenSize,
@@ -62,6 +64,7 @@ impl Command {
             SetHeading => 1,
             SetXY => 2,
             Home => 0,
+            SetSpeed => 1,
 
             // pen
             PenUp | PenDown => 0,
